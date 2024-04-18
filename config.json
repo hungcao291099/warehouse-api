@@ -1,0 +1,11 @@
+{
+    "dbSetting": {
+        "user": "sa",
+        "password": "@pyungan_pass_sa!@21323",
+        "server": "192.168.80.3",
+        "database": "PMS_VIETNAM_DB",
+        "options": {
+            "encrypt": false
+        }
+    }
+}
