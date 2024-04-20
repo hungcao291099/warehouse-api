@@ -1,9 +1,9 @@
 let mssql;
 function settingDb(mssqlConnect) {
     mssql = mssqlConnect;
-
 }
 module.exports.settingDb = settingDb;
+
 async function updateFabricLocation(req, res) {
     const FROM_CUST = decodeURIComponent(req.body.FROM_CUST) || "";
     const TO_CUST = decodeURIComponent(req.body.TO_CUST) || "";
@@ -17,24 +17,40 @@ async function updateFabricLocation(req, res) {
     const PAY_CODE = 20 // Move to another local warehouse
     const dvrRemark = "Location Update"
     const inHNote = dvrRemark + "/Auto In Reg after Out Reg"
+    console.log(`
+    FROM_CUST:  ${FROM_CUST}
+    TO_CUST:  ${TO_CUST}
+    EMP_NO:  ${EMP_NO}
+    PRODUCT_CODE:  ${PRODUCT_CODE}
+    PRODUCT_QTY:  ${PRODUCT_QTY}
+    FABRIC_NO:  ${FABRIC_NO}
+    IMP_NO:  ${IMP_NO}
+    DVR_NO:  ${DVR_NO}
+    REMARK:  ${REMARK}
+    PAY_CODE:  ${PAY_CODE}
+    dvrRemark:  ${dvrRemark}
+    inHNote:  ${inHNote}`);
     try {
         const currentDate = getCurrentDate(4)
         const currentDate2 = getCurrentDate(2)
         const currentTime = getCurrentTime()
+        const DVR_COST = 0 // Move to local warehouse, it have no cost
+        const DVR_QTY = parseFloat(PRODUCT_QTY)
+        const DVR_PRICE = DVR_COST * DVR_QTY
         const PRODUCT_COST = await getProductCost(PRODUCT_CODE)
-        const OUT_NO = await insertDeliveryHTabel(PAY_CODE, FROM_CUST, TO_CUST, dvrRemark, EMP_NO, currentDate, currentTime)
+        const OUT_NO = await insertDeliveryHTable(PAY_CODE, FROM_CUST, TO_CUST, inHNote, EMP_NO, currentDate, currentTime)
         const IN_NO = await insertInHTable(PAY_CODE, FROM_CUST, TO_CUST, inHNote, EMP_NO, currentDate, currentTime)
 
-        await insert2DelevryDTable(OUT_NO, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST)
-        await insert2InDTable(IN_NO, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST)
+        await insert2DelevryDTable(OUT_NO, PRODUCT_CODE, PRODUCT_QTY, DVR_COST, DVR_PRICE)
+        await insert2InDTable(IN_NO, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, DVR_COST, DVR_PRICE, inHNote)
         await stockMove(OUT_NO, IN_NO, FROM_CUST, TO_CUST, currentDate, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST)
         await fabricOut(FROM_CUST, FABRIC_NO, PRODUCT_QTY, currentDate, currentTime, EMP_NO)
         await fabricIn(FABRIC_NO, TO_CUST, PRODUCT_CODE, PRODUCT_QTY, currentDate, currentTime, EMP_NO, IMP_NO, DVR_NO, REMARK, currentDate2)
-        res.json({ success: true, message: "SUCCESS" });
+        return res.json({ success: true, message: "SUCCESS" });
     } catch (error) {
-        console.error("Error executing query:", error);
-
+        console.error(`Error executing query: ${loading}`, error);
         res.status(500).json({ success: false, message: "An error occurred while processing the request" });
+
     }
 
 
@@ -74,8 +90,8 @@ async function getProductCost(PRODUCT_CODE) {
     return rows[0]["PRODUCT_COST"]
 }
 
-async function insertDeliveryHTabel(PAY_CODE, FROM_CUST, TO_CUST, dvrRemark, EMP_NO, currentDate, currentTime) {
-    var loading = "insertDeliveryHTabel "
+async function insertDeliveryHTable(PAY_CODE, FROM_CUST, TO_CUST, dvrRemark, EMP_NO, currentDate, currentTime) {
+    var loading = "insertDeliveryHTable "
     loading += "- pending"
     // console.log(loading);
     const DVR_NO = await createDvrNo(TO_CUST, currentDate)
@@ -91,7 +107,7 @@ async function insertDeliveryHTabel(PAY_CODE, FROM_CUST, TO_CUST, dvrRemark, EMP
         await new mssql.Request().query(sqlQuery1)
 
     } catch (error) {
-        console.error("Error executing query:", error);
+        console.error(`Error executing query: ${loading}`, error);
 
     }
     loading += " - done"
@@ -116,7 +132,7 @@ async function insertInHTable(PAY_CODE, FROM_CUST, TO_CUST, inHNote, EMP_NO, cur
         await new mssql.Request().query(sqlQuery1)
 
     } catch (error) {
-        console.error("Error executing query:", error);
+        console.error(`Error executing query: ${loading}`, error);
 
     }
     loading += " - done"
@@ -163,41 +179,44 @@ async function createInNo(TO_CUST, currentDate) {
     return tempInNo
 }
 
-async function insert2DelevryDTable(OUT_NO, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST) {
+async function insert2DelevryDTable(OUT_NO, PRODUCT_CODE, PRODUCT_QTY, DVR_COST, DVR_PRICE) {
     var loading = "insert2DelevryDTable "
     loading += "- pending"
     // console.log(loading);
     try {
         var sqlQuery = `INSERT INTO DELIVERY_D_TBL (DVR_NO, SEQ_NO, PRODUCT_CODE, DVR_QTY, DVR_COST, DVR_PRICE, DVR_D_REMARK)
-        VALUES ('${OUT_NO}', 1, '${PRODUCT_CODE}', ${PRODUCT_QTY}, ${PRODUCT_COST}, 0, '')`
+        VALUES ('${OUT_NO}', 1, '${PRODUCT_CODE}', ${PRODUCT_QTY}, ${DVR_COST}, ${DVR_PRICE}, '')`
 
         await new mssql.Request().query(sqlQuery)
     } catch (error) {
-        console.error("Error executing query:", error);
+        console.error(`Error executing query: ${loading}`, error);
 
     }
     loading += " - done"
+    console.log("done 1");
     // console.log(loading);
 
 }
 
-async function insert2InDTable(IN_NO, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST) {
+async function insert2InDTable(IN_NO, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, IN_COST, IN_PRICE, inHNote) {
     var loading = "insert2InDTable "
     loading += "- pending"
     // console.log(loading);
     try {
         var sqlQuery = `INSERT INTO IN_D_TBL (IN_NO, SEQ_NO, PRODUCT_CODE, IN_QTY, IN_COST,IN_PRICE, IN_D_REMARK, PRODUCT_COST)
-        VALUES ('${IN_NO}', 1, '${PRODUCT_CODE}', ${PRODUCT_QTY}, 0, 0, '', ${PRODUCT_COST})`
+        VALUES ('${IN_NO}', 1, '${PRODUCT_CODE}', ${PRODUCT_QTY}, ${IN_COST}, ${IN_PRICE}, '${inHNote}', ${PRODUCT_COST})`
         await new mssql.Request().query(sqlQuery)
     } catch (error) {
-        console.error("Error executing query:", error);
+        console.error(`Error executing query: ${loading}`, error);
 
     }
     loading += " - done"
+    console.log("Done 2");
     // console.log(loading);
 }
 
 async function stockMove(OUT_NO, IN_NO, FROM_CUST, TO_CUST, currentDate, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST) {
+    console.log(OUT_NO, IN_NO, FROM_CUST, TO_CUST, currentDate, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST);
     var loading = "stockMove "
     loading += "- pending"
     // console.log(loading);
@@ -222,32 +241,34 @@ async function stockMove(OUT_NO, IN_NO, FROM_CUST, TO_CUST, currentDate, PRODUCT
             totalOutQty = 0
         } else {
             for (const row of rows) {
-                if (totalOutQty == 0) break
+                if (totalOutQty <= 0) break
                 var tempQty = Math.round(parseFloat(row["IN_QTY"]) - parseFloat(row["OUT_QTY"]), 3)
                 var tempCost = parseFloat(row["INOUT_COST"])
-
+                console.log(row["IN_QTY"], row["OUT_QTY"]);
                 if (totalOutQty >= tempQty) {
                     await productStockTableDelivery(row["IN_NO"], parseInt(row["SEQ_NO"]), OUT_NO, dvrSeqNo, PRODUCT_CODE, FROM_CUST, TO_CUST, tempQty, tempCost, currentDate)
-                    await stockTabelDelivery(FROM_CUST, PRODUCT_CODE, parseInt(tempQty).toString(), parseInt(tempCost).toString(), currentDate)
-                    await stockTableIn(TO_CUST, PRODUCT_CODE, parseInt(tempQty).toString(), parseInt(tempCost).toString(), currentDate)
+                    await productStockIn(IN_NO, PRODUCT_CODE, TO_CUST, FROM_CUST, tempQty, tempCost, currentDate)
+                    await stockTabelDelivery(FROM_CUST, PRODUCT_CODE, tempQty, tempCost, currentDate)
+                    await stockTableIn(TO_CUST, PRODUCT_CODE, tempQty, tempCost, currentDate)
                     totalPrice += tempQty * tempCost
                     totalOutQty -= tempQty
                 } else {
-                    await productStockTableDelivery(row["IN_NO"], parseInt(row["SEQ_NO"]), OUT_NO, dvrSeqNo, PRODUCT_CODE, FROM_CUST, TO_CUST, totalOutQty, tempCost, currentDate)
-                    await stockTabelDelivery(FROM_CUST, PRODUCT_CODE, parseInt(totalOutQty).toString(), parseInt(tempCost).toString(), currentDate)
-                    await stockTableIn(TO_CUST, PRODUCT_CODE, parseInt(totalOutQty).toString(), parseInt(tempCost).toString(), currentDate)
+                    await productStockTableDelivery(row["IN_NO"], row["SEQ_NO"], OUT_NO, dvrSeqNo, PRODUCT_CODE, FROM_CUST, TO_CUST, totalOutQty, tempCost, currentDate)
+                    await productStockIn(IN_NO, PRODUCT_CODE, TO_CUST, FROM_CUST, totalOutQty, tempCost, currentDate)
+                    await stockTabelDelivery(FROM_CUST, PRODUCT_CODE, totalOutQty, tempCost, currentDate)
+                    await stockTableIn(TO_CUST, PRODUCT_CODE, totalOutQty, tempCost, currentDate)
                     totalPrice += tempQty * tempCost
                     totalOutQty -= tempQty
                 }
             }
         }
         if (totalOutQty > 0) {
-            await productStockIn(IN_NO, PRODUCT_CODE, TO_CUST, FROM_CUST, parseInt(totalOutQty).toString(), PRODUCT_CODE, currentDate)
-            await stockTabelDelivery(currentDate, IN_NO, PRODUCT_CODE, FROM_CUST, parseInt(totalOutQty).toString(), PRODUCT_CODE)
-            await stockTableIn(currentDate, IN_NO, PRODUCT_CODE, TO_CUST, parseInt(totalOutQty).toString(), PRODUCT_CODE, currentDate)
+            await productStockIn(IN_NO, PRODUCT_CODE, TO_CUST, FROM_CUST, totalOutQty, PRODUCT_CODE, currentDate)
+            await stockTabelDelivery(currentDate, IN_NO, PRODUCT_CODE, FROM_CUST, totalOutQty, PRODUCT_CODE)
+            await stockTableIn(currentDate, IN_NO, PRODUCT_CODE, TO_CUST, totalOutQty, PRODUCT_CODE, currentDate)
         }
     } catch (error) {
-        console.error("Error executing query:", error);
+        console.error(`Error executing query: ${loading}`, error);
 
     }
     loading += " - done"
@@ -397,7 +418,7 @@ async function stockTabelDelivery(FROM_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_
         }
         await stockCustTableUpload(FROM_CUST, PRODUCT_CODE)
     } catch (error) {
-        console.error("Error executing query:", error);
+        console.error(`Error executing query: ${loading}`, error);
 
     }
     loading += " - done"
@@ -434,6 +455,7 @@ async function stockTableIn(TO_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, cu
               ${PRODUCT_QTY}, ${inPrice},
                 0,0,
               ${PRODUCT_QTY}, ${inPrice})`
+            console.log(sqlQuery);
             await new mssql.Request().query(sqlQuery)
         }
         if (dateCount == "0" && dateHighCount == "0") {
@@ -448,6 +470,7 @@ async function stockTableIn(TO_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, cu
                   ${PRODUCT_QTY}, ${inPrice},
                     0,0,
                   ${PRODUCT_QTY}, ${inPrice})`
+                console.log(sqlQuery);
                 await new mssql.Request().query(sqlQuery)
             } else {
                 var sqlQuery = `INSERT INTO STOCK_TBL (CUST_CODE, PRODUCT_CODE, STOCK_DATE,
@@ -466,6 +489,7 @@ async function stockTableIn(TO_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, cu
                     AND PRODUCT_CODE = '${PRODUCT_CODE}'
                     AND STOCK_DATE < '${currentDate}'
                     ORDER BY STOCK_DATE DESC`
+                console.log(sqlQuery);
                 await new mssql.Request().query(sqlQuery)
             }
         } else if (dateCount != "0" && dateHighCount != "0") {
@@ -477,6 +501,7 @@ async function stockTableIn(TO_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, cu
             WHERE CUST_CODE = '${TO_CUST}'
             AND PRODUCT_CODE = '${PRODUCT_CODE}'
             AND STOCK_DATE = '${currentDate}'`
+            console.log(sqlQuery);
             await new mssql.Request().query(sqlQuery)
         } else if (dateCount != "0" && dateHighCount != "0") {
             var sqlQuery = `SELECT STOCK_DATE FROM STOCK_TBL WITH(NOLOCK)
@@ -484,6 +509,7 @@ async function stockTableIn(TO_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, cu
               AND PRODUCT_CODE = '${PRODUCT_CODE}'
               AND STOCK_DATE >= '${currentDate}'
             ORDER BY STOCK_DATE`
+            console.log(sqlQuery);
             var result = await new mssql.Request().query(sqlQuery)
             var rows = result.recordset
 
@@ -498,6 +524,7 @@ async function stockTableIn(TO_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, cu
                     WHERE CUST_CODE = '${TO_CUST}'
                     AND PRODUCT_CODE = '${PRODUCT_CODE}'
                     AND STOCK_DATE = '${stockDate}'`
+                    console.log(sqlQuery);
                     await new mssql.Request().query(sqlQuery)
                 } else {
                     var sqlQuery = `UPDATE STOCK_TBL
@@ -508,6 +535,7 @@ async function stockTableIn(TO_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, cu
                     WHERE CUST_CODE = '${TO_CUST}'
                     AND PRODUCT_CODE = '${PRODUCT_CODE}'
                     AND STOCK_DATE = '${stockDate}'`
+                    console.log(sqlQuery);
                     await new mssql.Request().query(sqlQuery)
                 }
             }
@@ -528,6 +556,7 @@ async function stockTableIn(TO_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, cu
                 AND PRODUCT_CODE = '${PRODUCT_CODE}'
                 AND STOCK_DATE < '${currentDate}'
                 ORDER BY STOCK_DATE DESC`
+            console.log(sqlQuery);
             await new mssql.Request().query(sqlQuery)
 
             var sqlQuery = `UPDATE STOCK_TBL
@@ -538,6 +567,7 @@ async function stockTableIn(TO_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, cu
             WHERE CUST_CODE = '${TO_CUST}'
             AND PRODUCT_CODE = '${PRODUCT_CODE}'
             AND STOCK_DATE > '${currentDate}'`
+            console.log(sqlQuery);
             await new mssql.Request().query(sqlQuery)
         } else if (dateCount != "0" && dateHighCount == "0") {
             var sqlQuery = `UPDATE STOCK_TBL
@@ -548,12 +578,13 @@ async function stockTableIn(TO_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, cu
             WHERE CUST_CODE = '${TO_CUST}'
             AND PRODUCT_CODE = '${PRODUCT_CODE}'
             AND STOCK_DATE = '${currentDate}'`
+            console.log(sqlQuery);
             await new mssql.Request().query(sqlQuery)
         }
         await stockCustTableUpload(TO_CUST, PRODUCT_CODE)
     }
     catch (error) {
-        console.error("Error executing query:", error);
+        console.error(`Error executing query: ${loading}`, error);
 
     }
     loading += " - done"
@@ -570,7 +601,7 @@ async function productStockIn(IN_NO, PRODUCT_CODE, TO_CUST, FROM_CUST, PRODUCT_Q
             INOUT_QTY, INOUT_COST,
             P_CUST_CODE, F_CUST_CODE, INOUT_DATE,
             DVR_NO, DVR_SEQ, END_YN)
-            SELECT '${IN_NO}', ISNULL(MAX(INOUT_SEQ),0) + 1, 0, '${PRODUCT_CODE}',
+            SELECT '${IN_NO}', ISNULL(MAX(SEQ_NO),0) + 1, 0, '${PRODUCT_CODE}',
                     ${PRODUCT_QTY}, ${PRODUCT_COST},
                 '${TO_CUST}', '${FROM_CUST}', '${currentDate}',
                 '', 0, 'N'
@@ -578,7 +609,7 @@ async function productStockIn(IN_NO, PRODUCT_CODE, TO_CUST, FROM_CUST, PRODUCT_Q
             WHERE IN_NO = '${IN_NO}' `
         await new mssql.Request().query(sqlQuery)
     } catch (error) {
-        console.error("Error executing query:", error);
+        console.error(`Error executing query: ${loading}`, error);
 
     }
     loading += " - done"
@@ -601,7 +632,6 @@ async function productStockTableDelivery(IN_NO, SEQ_NO, OUT_NO, dvrSeqNo, PRODUC
                 '${OUT_NO}', ${dvrSeqNo}, 'N'
             FROM PRD_STOCK_TBL WITH(NOLOCK)
             WHERE IN_NO = '${IN_NO}' AND SEQ_NO = ${SEQ_NO}`
-        // console.log(sqlQuery);
         await new mssql.Request().query(sqlQuery)
 
         sqlQuery = `SELECT
@@ -619,9 +649,9 @@ async function productStockTableDelivery(IN_NO, SEQ_NO, OUT_NO, dvrSeqNo, PRODUC
             WHERE IN_NO = '${IN_NO}' AND SEQ_NO = ${SEQ_NO}`
             await new mssql.Request().query(sqlQuery)
         }
-        await productStockIn(IN_NO, PRODUCT_CODE, TO_CUST, FROM_CUST, parseInt(Qty).toString(), parseInt(Cost).toString(), currentDate)
+
     } catch (error) {
-        console.error("Error executing query:", error);
+        console.error(`Error executing query: ${loading}`, error);
 
     }
     loading += " - done"
@@ -719,8 +749,8 @@ async function fabricIn(FABRIC_NO, TO_CUST, PRODUCT_CODE, PRODUCT_QTY, currentDa
 async function getFabricNo(req, res) {
     const PRODUCT_CODE = decodeURIComponent(req.query.PRODUCT_CODE) || "";
     if (PRODUCT_CODE.length == 0) {
-        res.json({ success: false, message: "PRODUCT_CODE must not be empty" });
-        return; // Return early if emp_no is empty
+
+        return res.json({ success: false, message: "PRODUCT_CODE must not be empty" });
     }
     try {
         var sqlQuery = `SELECT C.CUST_NAME,A.IN_NO,A.STOCK_QTY FROM FABRIC_STOCK_TBL A 
@@ -730,7 +760,7 @@ async function getFabricNo(req, res) {
         var result = await new mssql.Request().query(sqlQuery);
         var rows = result.recordset
         var data = []
-        if (rows.length == 0) res.json({ success: true, message: "empty Data", data });
+        if (rows.length == 0) return res.json({ success: true, message: "empty Data", data });
         for (const row of rows) {
             var js = {}
             js.CUST_NAME = row["CUST_NAME"]
@@ -738,9 +768,9 @@ async function getFabricNo(req, res) {
             js.STOCK_QTY = row["STOCK_QTY"]
             data.push(js)
         }
-        res.json({ success: true, message: "SUCCESS", data });
+        console.log(`productCode: ${PRODUCT_CODE}  -- count: ${rows.length}`);
+        res.json({ success: true, message: "SUCCESS", totalCount: rows.length, data });
     } catch (error) {
-        res.status(500).json({ success: false, message: "An error occurred while processing the request" });
     }
 }
 module.exports.getFabricNo = getFabricNo

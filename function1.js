@@ -61,7 +61,7 @@ async function getFabricInfo(req, res) {
     WHERE A.IN_NO = '${fabricNo}'`
     var result = await new mssql.Request().query(sqlQuery)
     if (result.recordset.length == 0) {
-        res.json({ success: false, message: "Empty data", data: [] });
+        res.json({ success: false, message: "Empty data" });
     } else {
         var row = result.recordset[0]
         var js = {}
@@ -87,8 +87,8 @@ async function getMID(req, res) {
 
     for (let row of result.recordset) {
         var js = {};
-        js.CUST_MID_CODE = row["CUST_MID_CODE"];
-        js.CUST_MID_NAME = row["CUST_MID_NAME"];
+        js.CODE = row["CUST_MID_CODE"];
+        js.NAME = row["CUST_MID_NAME"];
         data.push(js);
     }
 
@@ -110,8 +110,8 @@ async function getSML(req, res) {
 
     for (let row of result.recordset) {
         var js = {};
-        js.CUST_SML_CODE = row["CUST_SML_CODE"];
-        js.CUST_SML_NAME = row["CUST_SML_NAME"];
+        js.CODE = row["CUST_SML_CODE"];
+        js.NAME = row["CUST_SML_NAME"];
         data.push(js);
     }
 
@@ -135,8 +135,8 @@ async function getCUSTOMER(req, res) {
 
     for (let row of result.recordset) {
         var js = {};
-        js.CUST_CODE = row["CUST_CODE"];
-        js.CUST_NAME = row["CUST_NAME"];
+        js.CODE = row["CUST_CODE"];
+        js.NAME = row["CUST_NAME"];
         data.push(js);
     }
 
@@ -157,7 +157,7 @@ async function addSML(req, res) {
         const SML_CODE = await createSMLCode(LGR_CODE, MID_CODE)
         var sqlQuery = `INSERT INTO CUST_SML_TBL(CUST_LGR_CODE,CUST_MID_CODE,CUST_SML_CODE,CUST_SML_NAME,CUST_SML_NAME_ENG) VALUES('${LGR_CODE}','${MID_CODE}','${SML_CODE}','${SML_NAME}','')`
         await new mssql.Request().query(sqlQuery);
-        res.json({ success: true, message: "SUCCESS", data: [] });
+        res.json({ success: true, message: "SUCCESS" });
     } catch (error) {
         res.status(500).json({ success: false, message: "An error occurred while processing the request" });
     }
@@ -192,7 +192,7 @@ async function updateSML(req, res) {
         var sqlQuery = `UPDATE CUST_SML_TBL SET CUST_SML_NAME ='${SML_NAME}' 
         WHERE CUST_LGR_CODE = '${LGR_CODE}' AND CUST_MID_CODE ='${MID_CODE}' AND CUST_SML_CODE ='${SML_CODE}'`
         await new mssql.Request().query(sqlQuery)
-        res.json({ success: true, message: "SUCCESS", data: [] });
+        res.json({ success: true, message: "SUCCESS" });
     } catch (error) {
         res.status(500).json({ success: false, message: "An error occurred while processing the request" });
     }
@@ -211,7 +211,7 @@ async function updateCustCode(req, res) {
     try {
         var sqlQuery = `UPDATE CUSTOMER_TBL SET CUST_NAME = '${CUST_NAME}' WHERE CUST_CODE='${CUST_CODE}'`
         await new mssql.Request().query(sqlQuery)
-        res.json({ success: true, message: "SUCCESS", data: [] });
+        res.json({ success: true, message: "SUCCESS" });
     } catch (error) {
         res.status(500).json({ success: false, message: "An error occurred while processing the request" });
     }
@@ -231,7 +231,7 @@ async function addCust(req, res) {
         res.json({ success: false, message: "MID_CODE and SML_CODE and CUST_NAME and EMP_NO must not be empty" });
         return;
     }
-    const newCust = await createCustCode(MID_CODE, SML_CODE)
+    const newCust = await getCustCode(MID_CODE, SML_CODE)
     try {
         var sqlQuery = `INSERT INTO CUSTOMER_TBL (CUST_CODE, CUST_NAME, CUST_NAME_ENG, CUST_LGR_CODE, CUST_MID_CODE, 
             CUST_SML_CODE, COUNTRY_CODE, CUST_TEL_NO, CUST_HP_NO, ADDR_MOD, 
@@ -248,7 +248,7 @@ async function addCust(req, res) {
              '', N'', 'Y', 'N', 'N',
             'Y', 'Y')`
         await new mssql.Request().query(sqlQuery)
-        res.json({ success: true, message: "SUCCESS", data: [] });
+        res.json({ success: true, message: "SUCCESS" });
     } catch (error) {
         res.status(500).json({ success: false, message: "An error occurred while processing the request" });
     }
@@ -256,7 +256,9 @@ async function addCust(req, res) {
 }
 module.exports.addCust = addCust
 
-async function createCustCode(MID_CODE, SML_CODE) {
+
+
+async function getCustCode(MID_CODE, SML_CODE) {
     var tempCust = `W${MID_CODE}${SML_CODE}`
     var sqlQuery = `SELECT CUST_CODE FROM CUSTOMER_TBL WHERE CUST_CODE LIKE '${tempCust}%'`
     var result = await new mssql.Request().query(sqlQuery)
@@ -278,7 +280,7 @@ async function deleteSML(req, res) {
     try {
         var sqlQuery = `DELETE CUST_SML_TBL WHERE CUST_LGR_CODE = '${LGR_CODE}' AND CUST_MID_CODE ='${MID_CODE}' AND CUST_SML_CODE ='${SML_CODE}'`
         await new mssql.Request().query(sqlQuery)
-        res.json({ success: true, message: "SUCCESS", data: [] })
+        res.json({ success: true, message: "SUCCESS" })
     } catch (error) {
         res.status(500).json({ success: false, message: "An error occurred while processing the request" });
     }
@@ -290,7 +292,7 @@ async function deleteCust(req, res) {
     try {
         var sqlQuery = `DELETE CUSTOMER_TBL WHERE CUST_CODE = '${CUST_CODE}'`
         await new mssql.Request().query(sqlQuery)
-        res.json({ success: true, message: "SUCCESS", data: [] })
+        res.json({ success: true, message: "SUCCESS" })
     } catch (error) {
         res.status(500).json({ success: false, message: "An error occurred while processing the request" });
     }
