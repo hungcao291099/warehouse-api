@@ -226,17 +226,17 @@ async function stockMove(OUT_NO, IN_NO, FROM_CUST, TO_CUST, currentDate, PRODUCT
     try {
         var sqlQuery = ` SELECT A.IN_NO, A.SEQ_NO, A.INOUT_DATE, A.INOUT_COST, A.INOUT_QTY AS IN_QTY,
         ISNULL((SELECT SUM(INOUT_QTY) FROM PRD_STOCK_TBL WITH(NOLOCK) WHERE IN_NO = A.IN_NO AND SEQ_NO = A.SEQ_NO AND INOUT_SEQ > 0),0) AS OUT_QTY
-        FROM PRD_STOCK_TBL A WITH(NOLOCK)
-        WHERE A.P_CUST_CODE = '${FROM_CUST}'
-        AND A.PRODUCT_CODE = '${PRODUCT_CODE}'
-        AND A.INOUT_SEQ = 0
-        AND A.END_YN <> 'Y'
+            FROM PRD_STOCK_TBL A WITH(NOLOCK)
+            WHERE A.P_CUST_CODE = '${FROM_CUST}'
+            AND A.PRODUCT_CODE = '${PRODUCT_CODE}'
+            AND A.INOUT_SEQ = 0
+            AND A.END_YN <> 'Y'
         ORDER BY INOUT_DATE`
         var result = await new mssql.Request().query(sqlQuery)
         var rows = result.recordset
         if (rows.length == 0) {
-            await stockTabelDelivery(currentDate, FROM_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST)
-            await stockTableIn(currentDate, TO_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST)
+            await stockTabelDelivery(FROM_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, currentDate)
+            await stockTableIn(TO_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, currentDate)
             await productStockIn(IN_NO, PRODUCT_CODE, TO_CUST, FROM_CUST, PRODUCT_QTY, PRODUCT_COST, currentDate)
             totalOutQty = 0
         } else {
@@ -663,8 +663,8 @@ async function stockCustTableUpload(_CUST, PRODUCT_CODE) {
     loading += "- pending"
     // console.log(loading);
     sqlQuery = `SELECT STOCK_QTY, STOCK_PRICE FROM STOCK_TBL WITH(NOLOCK)
-    WHERE CUST_CODE = '${_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}'
-    AND STOCK_DATE = (SELECT MAX(STOCK_DATE) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE ='${_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}')`
+                    WHERE CUST_CODE = '${_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}'
+                    AND STOCK_DATE = (SELECT MAX(STOCK_DATE) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE ='${_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}')`
     var result = await new mssql.Request().query(sqlQuery)
     var rows = result.recordset
 
@@ -718,9 +718,9 @@ async function fabricOut(FROM_CUST, FABRIC_NO, PRODUCT_QTY, currentDate, current
     }
     var remark = "Update location"
     var sqlQuery = `INSERT INTO FABRIC_INOUT_TBL (IN_NO, SEQ_NO, INOUT_DIV, INOUT_QTY, REG_DATE, REG_TIME, EMP_NO, REMARK)
-    SELECT '${FABRIC_NO}', ISNULL(MAX(SEQ_NO), 0) + 1, '2', ${PRODUCT_QTY}, '${currentDate}', '${currentTime}', '${EMP_NO}', '${remark}'
-      FROM FABRIC_INOUT_TBL WITH(NOLOCK)
-    WHERE IN_NO = '${FABRIC_NO}'`
+                        SELECT '${FABRIC_NO}', ISNULL(MAX(SEQ_NO), 0) + 1, '2', ${PRODUCT_QTY}, '${currentDate}', '${currentTime}', '${EMP_NO}', '${remark}'
+                        FROM FABRIC_INOUT_TBL WITH(NOLOCK)
+                        WHERE IN_NO = '${FABRIC_NO}'`
     await new mssql.Request().query(sqlQuery)
     loading += " - done"
     // console.log(loading);
@@ -754,9 +754,9 @@ async function getFabricNo(req, res) {
     }
     try {
         var sqlQuery = `SELECT C.CUST_NAME,A.IN_NO,A.STOCK_QTY FROM FABRIC_STOCK_TBL A 
-        LEFT JOIN FABRIC_IN_TBL B ON A.IN_NO = B.IN_NO 
-        LEFT JOIN CUSTOMER_TBL C ON C.CUST_CODE = A.CUST_CODE 
-        WHERE B.PRODUCT_CODE='${PRODUCT_CODE}'`
+                            LEFT JOIN FABRIC_IN_TBL B ON A.IN_NO = B.IN_NO 
+                            LEFT JOIN CUSTOMER_TBL C ON C.CUST_CODE = A.CUST_CODE 
+                        WHERE B.PRODUCT_CODE='${PRODUCT_CODE}'`
         var result = await new mssql.Request().query(sqlQuery);
         var rows = result.recordset
         var data = []
