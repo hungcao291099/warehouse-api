@@ -95,4 +95,8 @@ app.get('/main/get_fabric_no', function (req, res) {
     console.log("/main/get_fabric_no - GET");
     func2.getFabricNo(req, res)
 })
+app.get('/main/get_current_fabric_location', function (req, res) {
+    console.log("/main/get_current_fabric_location - GET");
+    func2.getCurrentFabricLocation(req, res)
+})
 

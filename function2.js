@@ -38,9 +38,9 @@ async function updateFabricLocation(req, res) {
         const DVR_QTY = parseFloat(PRODUCT_QTY)
         const DVR_PRICE = DVR_COST * DVR_QTY
         const PRODUCT_COST = await getProductCost(PRODUCT_CODE)
-        const OUT_NO = await insertDeliveryHTable(PAY_CODE, FROM_CUST, TO_CUST, inHNote, EMP_NO, currentDate, currentTime)
-        const IN_NO = await insertInHTable(PAY_CODE, FROM_CUST, TO_CUST, inHNote, EMP_NO, currentDate, currentTime)
-
+        const OUT_NO = await insertDeliveryHTable(PAY_CODE, FROM_CUST, TO_CUST, inHNote, EMP_NO, currentDate, currentTime, currentDate2)
+        const IN_NO = await insertInHTable(PAY_CODE, FROM_CUST, TO_CUST, inHNote, EMP_NO, currentDate, currentTime, currentDate2)
+        console.log(currentDate, ",", currentDate2);
         await insert2DelevryDTable(OUT_NO, PRODUCT_CODE, PRODUCT_QTY, DVR_COST, DVR_PRICE)
         await insert2InDTable(IN_NO, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, DVR_COST, DVR_PRICE, inHNote)
         await stockMove(OUT_NO, IN_NO, FROM_CUST, TO_CUST, currentDate, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST)
@@ -48,7 +48,7 @@ async function updateFabricLocation(req, res) {
         await fabricIn(FABRIC_NO, TO_CUST, PRODUCT_CODE, PRODUCT_QTY, currentDate, currentTime, EMP_NO, IMP_NO, DVR_NO, REMARK, currentDate2)
         return res.json({ success: true, message: "SUCCESS" });
     } catch (error) {
-        console.error(`Error executing query: ${loading}`, error);
+        console.error(`Error executing query: `, error);
         res.status(500).json({ success: false, message: "An error occurred while processing the request" });
 
     }
@@ -61,7 +61,7 @@ module.exports.updateFabricLocation = updateFabricLocation
 function getCurrentDate(yearLength) {
     const now = new Date();
     var year
-    if (yearLength = 2) {
+    if (yearLength == 2) {
         year = String(now.getFullYear()).slice(-2);
     } else {
         year = now.getFullYear()
@@ -90,16 +90,19 @@ async function getProductCost(PRODUCT_CODE) {
     return rows[0]["PRODUCT_COST"]
 }
 
-async function insertDeliveryHTable(PAY_CODE, FROM_CUST, TO_CUST, dvrRemark, EMP_NO, currentDate, currentTime) {
+async function insertDeliveryHTable(PAY_CODE, FROM_CUST, TO_CUST, dvrRemark, EMP_NO, currentDate, currentTime, currentDate2) {
     var loading = "insertDeliveryHTable "
     loading += "- pending"
     // console.log(loading);
-    const DVR_NO = await createDvrNo(TO_CUST, currentDate)
+    const DVR_NO = await createDvrNo(TO_CUST, currentDate2)
     try {
-        var sqlQuery = `INSERT INTO DELIVERY_H_TBL (DVR_NO, DVR_DATE, DVR_TIME, PAY_CODE, EMP_NO,
-            P_CUST_CODE, F_CUST_CODE, REC_EMP_NO)
-            VALUES ('${DVR_NO}', '${currentDate}', '${currentTime}', '${PAY_CODE}', '${EMP_NO}',
-            '${TO_CUST}', '${FROM_CUST}', '')`
+        var sqlQuery = `
+        INSERT INTO DELIVERY_H_TBL 
+        (DVR_NO, DVR_DATE, DVR_TIME, PAY_CODE, EMP_NO,
+        P_CUST_CODE, F_CUST_CODE, REC_EMP_NO)
+        VALUES 
+        ('${DVR_NO}', '${currentDate}', '${currentTime}', '${PAY_CODE}', '${EMP_NO}',
+        '${TO_CUST}', '${FROM_CUST}', '')`
 
         await new mssql.Request().query(sqlQuery)
 
@@ -115,11 +118,11 @@ async function insertDeliveryHTable(PAY_CODE, FROM_CUST, TO_CUST, dvrRemark, EMP
     return DVR_NO
 }
 
-async function insertInHTable(PAY_CODE, FROM_CUST, TO_CUST, inHNote, EMP_NO, currentDate, currentTime) {
+async function insertInHTable(PAY_CODE, FROM_CUST, TO_CUST, inHNote, EMP_NO, currentDate, currentTime, currentDate2) {
     var loading = "insertInHTable "
     loading += "- pending"
     // console.log(loading);
-    const IN_NO = await createInNo(TO_CUST, currentDate)
+    const IN_NO = await createInNo(TO_CUST, currentDate2)
     try {
         var sqlQuery = `INSERT INTO IN_H_TBL (IN_NO, IN_DATE, IN_TIME, PAY_CODE, EMP_NO, 
             P_CUST_CODE, F_CUST_CODE)
@@ -184,8 +187,11 @@ async function insert2DelevryDTable(OUT_NO, PRODUCT_CODE, PRODUCT_QTY, DVR_COST,
     loading += "- pending"
     // console.log(loading);
     try {
-        var sqlQuery = `INSERT INTO DELIVERY_D_TBL (DVR_NO, SEQ_NO, PRODUCT_CODE, DVR_QTY, DVR_COST, DVR_PRICE, DVR_D_REMARK)
-        VALUES ('${OUT_NO}', 1, '${PRODUCT_CODE}', ${PRODUCT_QTY}, ${DVR_COST}, ${DVR_PRICE}, '')`
+        var sqlQuery = `
+        INSERT INTO DELIVERY_D_TBL 
+        (DVR_NO, SEQ_NO, PRODUCT_CODE, DVR_QTY, DVR_COST, DVR_PRICE, DVR_D_REMARK)
+        VALUES 
+        ('${OUT_NO}', 1, '${PRODUCT_CODE}', ${PRODUCT_QTY}, ${DVR_COST}, ${DVR_PRICE}, '')`
 
         await new mssql.Request().query(sqlQuery)
     } catch (error) {
@@ -203,8 +209,12 @@ async function insert2InDTable(IN_NO, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, I
     loading += "- pending"
     // console.log(loading);
     try {
-        var sqlQuery = `INSERT INTO IN_D_TBL (IN_NO, SEQ_NO, PRODUCT_CODE, IN_QTY, IN_COST,IN_PRICE, IN_D_REMARK, PRODUCT_COST)
-        VALUES ('${IN_NO}', 1, '${PRODUCT_CODE}', ${PRODUCT_QTY}, ${IN_COST}, ${IN_PRICE}, '${inHNote}', ${PRODUCT_COST})`
+        var sqlQuery = `INSERT INTO IN_D_TBL 
+        (IN_NO, SEQ_NO, PRODUCT_CODE, IN_QTY, IN_COST,
+        IN_PRICE, IN_D_REMARK, PRODUCT_COST)
+        VALUES 
+        ('${IN_NO}', 1, '${PRODUCT_CODE}', ${PRODUCT_QTY}, ${IN_COST}, 
+        ${IN_PRICE}, '${inHNote}', ${PRODUCT_COST})`
         await new mssql.Request().query(sqlQuery)
     } catch (error) {
         console.error(`Error executing query: ${loading}`, error);
@@ -224,13 +234,16 @@ async function stockMove(OUT_NO, IN_NO, FROM_CUST, TO_CUST, currentDate, PRODUCT
     var totalPrice = 0
     var dvrSeqNo = 0
     try {
-        var sqlQuery = ` SELECT A.IN_NO, A.SEQ_NO, A.INOUT_DATE, A.INOUT_COST, A.INOUT_QTY AS IN_QTY,
-        ISNULL((SELECT SUM(INOUT_QTY) FROM PRD_STOCK_TBL WITH(NOLOCK) WHERE IN_NO = A.IN_NO AND SEQ_NO = A.SEQ_NO AND INOUT_SEQ > 0),0) AS OUT_QTY
-            FROM PRD_STOCK_TBL A WITH(NOLOCK)
-            WHERE A.P_CUST_CODE = '${FROM_CUST}'
-            AND A.PRODUCT_CODE = '${PRODUCT_CODE}'
-            AND A.INOUT_SEQ = 0
-            AND A.END_YN <> 'Y'
+        var sqlQuery = `
+        SELECT A.IN_NO, A.SEQ_NO, A.INOUT_DATE, A.INOUT_COST, A.INOUT_QTY AS IN_QTY,
+               ISNULL((SELECT SUM(INOUT_QTY) 
+               FROM PRD_STOCK_TBL WITH(NOLOCK) 
+               WHERE IN_NO = A.IN_NO AND SEQ_NO = A.SEQ_NO AND INOUT_SEQ > 0),0) AS OUT_QTY
+        FROM PRD_STOCK_TBL A WITH(NOLOCK)
+        WHERE A.P_CUST_CODE = '${FROM_CUST}'
+           AND A.PRODUCT_CODE = '${PRODUCT_CODE}'
+           AND A.INOUT_SEQ = 0
+           AND A.END_YN <> 'Y'
         ORDER BY INOUT_DATE`
         var result = await new mssql.Request().query(sqlQuery)
         var rows = result.recordset
@@ -281,11 +294,11 @@ async function stockTabelDelivery(FROM_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_
     // console.log(loading);
     var dvrPrice = parseFloat(PRODUCT_QTY) * parseFloat(PRODUCT_COST)
     try {
-        var sqlQuery = `SELECT 
-        (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${FROM_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}') AS TOT_CNT,
-        (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${FROM_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}' AND STOCK_DATE = '${currentDate}') AS DATE_CNT,
-        (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${FROM_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}' AND STOCK_DATE > '${currentDate}') AS DATE_HIGH_CNT,
-        (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${FROM_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}' AND STOCK_DATE < '${currentDate}') AS DATE_LOW_CNT`
+        var sqlQuery = `
+        SELECT (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${FROM_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}') AS TOT_CNT,
+               (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${FROM_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}' AND STOCK_DATE = '${currentDate}') AS DATE_CNT,
+               (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${FROM_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}' AND STOCK_DATE > '${currentDate}') AS DATE_HIGH_CNT,
+               (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${FROM_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}' AND STOCK_DATE < '${currentDate}') AS DATE_LOW_CNT`
 
         var result = await new mssql.Request().query(sqlQuery)
         var row = result.recordset[0]
@@ -295,53 +308,45 @@ async function stockTabelDelivery(FROM_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_
         const dateHighCount = row["DATE_HIGH_CNT"]
         const dateLowCount = row["DATE_LOW_CNT"]
         if (totalCount == "0") {
-            var sqlQuery = `INSERT INTO STOCK_TBL (CUST_CODE, PRODUCT_CODE, STOCK_DATE, 
-                TRANS_QTY, TRANS_PRICE,
-                IN_QTY, IN_PRICE,
-                OUT_QTY, OUT_PRICE,
-                STOCK_QTY, STOCK_PRICE)
-                VALUES ('${FROM_CUST}', '${PRODUCT_CODE}', '00000000',
-                0,0,
-                0,0,
-                0,0,
-                0,0)`
+            var sqlQuery = `
+            INSERT INTO STOCK_TBL 
+            (CUST_CODE, PRODUCT_CODE, STOCK_DATE, TRANS_QTY, TRANS_PRICE,
+            IN_QTY, IN_PRICE, OUT_QTY, OUT_PRICE,STOCK_QTY, STOCK_PRICE)
+            VALUES 
+            ('${FROM_CUST}', '${PRODUCT_CODE}', '00000000', 0, 0,
+            0, 0, 0, 0, 0, 0 )`
             await new mssql.Request().query(sqlQuery)
         }
 
         if (dateCount == "0" && dateHighCount == "0") {
             if (dateLowCount == "0") {
-                var sqlQuery = `INSERT INTO STOCK_TBL (CUST_CODE, PRODUCT_CODE, STOCK_DATE, 
-                    TRANS_QTY, TRANS_PRICE,
-                    IN_QTY, IN_PRICE,
-                    OUT_QTY, OUT_PRICE,
-                    STOCK_QTY, STOCK_PRICE)
-            VALUES ('${FROM_CUST}', '${PRODUCT_CODE}', '${currentDate}',
-                    0,0,
-                    0,0,
-                  ${PRODUCT_QTY}, ${dvrPrice},
-                  -${PRODUCT_QTY}, -${dvrPrice})`
+                var sqlQuery = `
+                INSERT INTO STOCK_TBL 
+                (CUST_CODE, PRODUCT_CODE, STOCK_DATE, TRANS_QTY, TRANS_PRICE,
+                IN_QTY, IN_PRICE, OUT_QTY, OUT_PRICE, STOCK_QTY, STOCK_PRICE)
+                VALUES 
+                ('${FROM_CUST}', '${PRODUCT_CODE}', '${currentDate}', 0, 0,
+                0,0, ${PRODUCT_QTY}, ${dvrPrice}, -${PRODUCT_QTY}, -${dvrPrice})`
                 await new mssql.Request().query(sqlQuery)
             } else {
-                var sqlQuery = `INSERT INTO STOCK_TBL (CUST_CODE, PRODUCT_CODE, STOCK_DATE,
-                    TRANS_QTY, TRANS_PRICE,
-                    IN_QTY, IN_PRICE,
-                    OUT_QTY, OUT_PRICE,
-                    STOCK_QTY, STOCK_PRICE)
-                    SELECT TOP 1 
-                        CUST_CODE, PRODUCT_CODE, '${currentDate}',
-                        STOCK_QTY, STOCK_PRICE,
-                        0, 0,
-                    ${PRODUCT_QTY}, ${dvrPrice},
-                        STOCK_QTY - ${PRODUCT_QTY}, STOCK_PRICE - ${dvrPrice}
-                    FROM STOCK_TBL
-                    WHERE CUST_CODE = '${FROM_CUST}'
+                var sqlQuery = `
+                INSERT INTO STOCK_TBL 
+                (CUST_CODE, PRODUCT_CODE, STOCK_DATE, TRANS_QTY, TRANS_PRICE,
+                IN_QTY, IN_PRICE, OUT_QTY, OUT_PRICE, STOCK_QTY, STOCK_PRICE)
+                SELECT TOP 1 
+                    CUST_CODE, PRODUCT_CODE, '${currentDate}', STOCK_QTY, STOCK_PRICE,
+                    0, 0, ${PRODUCT_QTY}, ${dvrPrice}, STOCK_QTY - ${PRODUCT_QTY}, STOCK_PRICE - ${dvrPrice}
+                FROM STOCK_TBL
+                WHERE CUST_CODE = '${FROM_CUST}'
                     AND PRODUCT_CODE = '${PRODUCT_CODE}'
                     AND STOCK_DATE < '${currentDate}'
-                    ORDER BY STOCK_DATE DESC`
+                ORDER BY STOCK_DATE DESC`
                 await new mssql.Request().query(sqlQuery)
             }
         } else if (dateCount != "0" && dateHighCount == "0") {
-            var sqlQuery = `UPDATE STOCK_TBL
+
+            var sqlQuery = `
+            UPDATE STOCK_TBL
             SET OUT_QTY = OUT_QTY + ${PRODUCT_QTY},
                 OUT_PRICE = OUT_PRICE + ${dvrPrice},
                 STOCK_QTY = STOCK_QTY - ${PRODUCT_QTY},
@@ -349,20 +354,25 @@ async function stockTabelDelivery(FROM_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_
             WHERE CUST_CODE = '${FROM_CUST}'
             AND PRODUCT_CODE = '${PRODUCT_CODE}'
             AND STOCK_DATE = '${currentDate}'`
+
             await new mssql.Request().query(sqlQuery)
         } else if (dateCount != "0" && dateHighCount != "0") {
-            var sqlQuery = `SELECT STOCK_DATE FROM STOCK_TBL WITH(NOLOCK)
+
+            var sqlQuery = `
+            SELECT STOCK_DATE FROM STOCK_TBL WITH(NOLOCK)
             WHERE CUST_CODE = '${FROM_CUST}'
               AND PRODUCT_CODE = '${PRODUCT_CODE}'
               AND STOCK_DATE >= '${currentDate}'
             ORDER BY STOCK_DATE`
+
             var result = await new mssql.Request().query(sqlQuery)
             var rows = result.recordset
 
             for (const row of rows) {
                 var stockDate = row["STOCK_DATE"]
                 if (currentDate == stockDate) {
-                    var sqlQuery = `UPDATE STOCK_TBL
+                    var sqlQuery = `
+                    UPDATE STOCK_TBL
                     SET OUT_QTY = OUT_QTY + ${PRODUCT_QTY},
                         OUT_PRICE = OUT_PRICE + ${dvrPrice},
                         STOCK_QTY = STOCK_QTY - ${PRODUCT_QTY},
@@ -370,9 +380,11 @@ async function stockTabelDelivery(FROM_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_
                     WHERE CUST_CODE = '${FROM_CUST}'
                     AND PRODUCT_CODE = '${PRODUCT_CODE}'
                     AND STOCK_DATE = '${stockDate}'`
+
                     await new mssql.Request().query(sqlQuery)
                 } else {
-                    var sqlQuery = `UPDATE STOCK_TBL
+                    var sqlQuery = `
+                    UPDATE STOCK_TBL
                     SET TRANS_QTY = TRANS_QTY - ${PRODUCT_QTY},
                         TRANS_PRICE = TRANS_PRICE - ${dvrPrice},
                         STOCK_QTY = STOCK_QTY - ${PRODUCT_QTY},
@@ -380,38 +392,33 @@ async function stockTabelDelivery(FROM_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_
                     WHERE CUST_CODE = '${FROM_CUST}'
                     AND PRODUCT_CODE = '${PRODUCT_CODE}'
                     AND STOCK_DATE = '${stockDate}'`
+
                     await new mssql.Request().query(sqlQuery)
                 }
             }
         } else if (dateCount == "0" && dateHighCount != "0") {
             if (dateCount == "0") {
-                var sqlQuery = `INSERT INTO STOCK_TBL (CUST_CODE, PRODUCT_CODE, STOCK_DATE, 
-                    TRANS_QTY, TRANS_PRICE,
-                    IN_QTY, IN_PRICE,
-                    OUT_QTY, OUT_PRICE,
-                    STOCK_QTY, STOCK_PRICE)
-                    VALUES ('${FROM_CUST}', '${PRODUCT_CODE}', '${currentDate}',
-                    0,0,
-                    0,0,
-                  ${PRODUCT_QTY}, ${dvrPrice},
-                  -${PRODUCT_QTY}, -${dvrPrice})`
+                var sqlQuery = `
+                INSERT INTO STOCK_TBL 
+                (CUST_CODE, PRODUCT_CODE, STOCK_DATE, TRANS_QTY, TRANS_PRICE,
+                IN_QTY, IN_PRICE, OUT_QTY, OUT_PRICE, STOCK_QTY, STOCK_PRICE)
+                VALUES 
+                ('${FROM_CUST}', '${PRODUCT_CODE}', '${currentDate}', 0, 0,
+                0,0, ${PRODUCT_QTY}, ${dvrPrice}, -${PRODUCT_QTY}, -${dvrPrice})`
+
                 await new mssql.Request().query(sqlQuery)
             } else {
-                var sqlQuery = `INSERT INTO STOCK_TBL (CUST_CODE, PRODUCT_CODE, STOCK_DATE,
-                    TRANS_QTY, TRANS_PRICE,
-                    IN_QTY, IN_PRICE,
-                    OUT_QTY, OUT_PRICE,
-                    STOCK_QTY, STOCK_PRICE)
+                var sqlQuery = `
+                INSERT INTO STOCK_TBL 
+                (CUST_CODE, PRODUCT_CODE, STOCK_DATE, TRANS_QTY, TRANS_PRICE,
+                IN_QTY, IN_PRICE, OUT_QTY, OUT_PRICE, STOCK_QTY, STOCK_PRICE)
                     SELECT TOP 1 
-                        CUST_CODE, PRODUCT_CODE, '${currentDate}',
-                        STOCK_QTY, STOCK_PRICE,
-                        0, 0,
-                    ${PRODUCT_QTY}, ${dvrPrice},
-                        STOCK_QTY - ${PRODUCT_QTY}, STOCK_PRICE - ${dvrPrice}
+                        CUST_CODE, PRODUCT_CODE, '${currentDate}', STOCK_QTY, STOCK_PRICE,
+                        0, 0, ${PRODUCT_QTY}, ${dvrPrice}, STOCK_QTY - ${PRODUCT_QTY}, STOCK_PRICE - ${dvrPrice}
                     FROM STOCK_TBL
                     WHERE CUST_CODE = '${FROM_CUST}'
-                    AND PRODUCT_CODE = '${PRODUCT_CODE}'
-                    AND STOCK_DATE < '${currentDate}'
+                        AND PRODUCT_CODE = '${PRODUCT_CODE}'
+                        AND STOCK_DATE < '${currentDate}'
                     ORDER BY STOCK_DATE DESC`
                 await new mssql.Request().query(sqlQuery)
             }
@@ -431,80 +438,72 @@ async function stockTableIn(TO_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, cu
     // console.log(loading);
     var inPrice = parseFloat(PRODUCT_QTY) * parseFloat(PRODUCT_COST)
     try {
-        var sqlQuery = `  SELECT 
+        var sqlQuery = `SELECT 
         (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${TO_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}') AS TOT_CNT,
         (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${TO_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}' AND STOCK_DATE = '${currentDate}') AS DATE_CNT,
         (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${TO_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}' AND STOCK_DATE > '${currentDate}') AS DATE_HIGH_CNT,
         (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${TO_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}' AND STOCK_DATE < '${currentDate}') AS DATE_LOW_CNT`
         var result = await new mssql.Request().query(sqlQuery)
         var row = result.recordset[0]
-
+        console.log(sqlQuery);
         const totalCount = row["TOT_CNT"]
         const dateCount = row["DATE_CNT"]
         const dateHighCount = row["DATE_HIGH_CNT"]
         const dateLowCount = row["DATE_LOW_CNT"]
 
         if (totalCount == "0") {
-            var sqlQuery = `INSERT INTO STOCK_TBL (CUST_CODE, PRODUCT_CODE, STOCK_DATE, 
-                TRANS_QTY, TRANS_PRICE,
-                IN_QTY, IN_PRICE,
-                OUT_QTY, OUT_PRICE,
-                STOCK_QTY, STOCK_PRICE)
-                VALUES ('${TO_CUST}', '${PRODUCT_CODE}', '${currentDate}',
-                0,0,
-              ${PRODUCT_QTY}, ${inPrice},
-                0,0,
-              ${PRODUCT_QTY}, ${inPrice})`
-            console.log(sqlQuery);
+            var sqlQuery = `
+            INSERT INTO STOCK_TBL 
+            (CUST_CODE, PRODUCT_CODE, STOCK_DATE, TRANS_QTY, TRANS_PRICE,
+            IN_QTY, IN_PRICE, OUT_QTY, OUT_PRICE, STOCK_QTY, STOCK_PRICE)
+            VALUES 
+            ('${TO_CUST}', '${PRODUCT_CODE}', '${currentDate}', 0, 0,
+              ${PRODUCT_QTY}, ${inPrice}, 0, 0, ${PRODUCT_QTY}, ${inPrice})`
+
             await new mssql.Request().query(sqlQuery)
         }
         if (dateCount == "0" && dateHighCount == "0") {
             if (dateLowCount == "0") {
-                var sqlQuery = `INSERT INTO STOCK_TBL (CUST_CODE, PRODUCT_CODE, STOCK_DATE, 
-                    TRANS_QTY, TRANS_PRICE,
-                    IN_QTY, IN_PRICE,
-                    OUT_QTY, OUT_PRICE,
-                    STOCK_QTY, STOCK_PRICE)
-                    VALUES ('${TO_CUST}', '${PRODUCT_CODE}', '${currentDate}',
-                    0,0,
-                  ${PRODUCT_QTY}, ${inPrice},
-                    0,0,
-                  ${PRODUCT_QTY}, ${inPrice})`
+                var sqlQuery = `
+                INSERT INTO STOCK_TBL 
+                (CUST_CODE, PRODUCT_CODE, STOCK_DATE, TRANS_QTY, TRANS_PRICE,
+                IN_QTY, IN_PRICE, OUT_QTY, OUT_PRICE, STOCK_QTY, STOCK_PRICE)
+                VALUES
+                ('${TO_CUST}', '${PRODUCT_CODE}', '${currentDate}', 0, 0,
+                  ${PRODUCT_QTY}, ${inPrice}, 0, 0, ${PRODUCT_QTY}, ${inPrice})`
                 console.log(sqlQuery);
                 await new mssql.Request().query(sqlQuery)
             } else {
-                var sqlQuery = `INSERT INTO STOCK_TBL (CUST_CODE, PRODUCT_CODE, STOCK_DATE,
-                    TRANS_QTY, TRANS_PRICE,
-                    IN_QTY, IN_PRICE,
-                    OUT_QTY, OUT_PRICE,
-                    STOCK_QTY, STOCK_PRICE)
-                    SELECT TOP 1 
-                        CUST_CODE, PRODUCT_CODE, '${currentDate}',
-                        STOCK_QTY, STOCK_PRICE,
-                    ${PRODUCT_QTY}, ${inPrice},
-                        0, 0,
-                        STOCK_QTY + ${PRODUCT_QTY}, STOCK_PRICE + ${inPrice}
+                var sqlQuery = `
+                INSERT INTO STOCK_TBL 
+                (CUST_CODE, PRODUCT_CODE, STOCK_DATE, TRANS_QTY, TRANS_PRICE,
+                IN_QTY, IN_PRICE, OUT_QTY, OUT_PRICE, STOCK_QTY, STOCK_PRICE)
+                SELECT TOP 1 
+                    CUST_CODE, PRODUCT_CODE, '${currentDate}', STOCK_QTY, STOCK_PRICE,
+                    ${PRODUCT_QTY}, ${inPrice}, 0, 0, STOCK_QTY + ${PRODUCT_QTY}, STOCK_PRICE + ${inPrice}
                     FROM STOCK_TBL
                     WHERE CUST_CODE = '${TO_CUST}'
-                    AND PRODUCT_CODE = '${PRODUCT_CODE}'
-                    AND STOCK_DATE < '${currentDate}'
+                        AND PRODUCT_CODE = '${PRODUCT_CODE}'
+                        AND STOCK_DATE < '${currentDate}'
                     ORDER BY STOCK_DATE DESC`
                 console.log(sqlQuery);
                 await new mssql.Request().query(sqlQuery)
             }
         } else if (dateCount != "0" && dateHighCount != "0") {
-            var sqlQuery = `UPDATE STOCK_TBL
+            var sqlQuery = `
+            UPDATE STOCK_TBL
             SET IN_QTY = IN_QTY + ${PRODUCT_QTY},
                 IN_PRICE = IN_PRICE + ${inPrice},
                 STOCK_QTY = STOCK_QTY + ${PRODUCT_QTY},
                 STOCK_PRICE = STOCK_PRICE + ${inPrice}
             WHERE CUST_CODE = '${TO_CUST}'
-            AND PRODUCT_CODE = '${PRODUCT_CODE}'
-            AND STOCK_DATE = '${currentDate}'`
+                AND PRODUCT_CODE = '${PRODUCT_CODE}'
+                AND STOCK_DATE = '${currentDate}'`
             console.log(sqlQuery);
             await new mssql.Request().query(sqlQuery)
         } else if (dateCount != "0" && dateHighCount != "0") {
-            var sqlQuery = `SELECT STOCK_DATE FROM STOCK_TBL WITH(NOLOCK)
+            var sqlQuery = `
+            SELECT STOCK_DATE FROM STOCK_TBL WITH(NOLOCK)
             WHERE CUST_CODE = '${TO_CUST}'
               AND PRODUCT_CODE = '${PRODUCT_CODE}'
               AND STOCK_DATE >= '${currentDate}'
@@ -516,68 +515,68 @@ async function stockTableIn(TO_CUST, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, cu
             for (const row of rows) {
                 var stockDate = row["STOCK_DATE"]
                 if (currentDate == stockDate) {
-                    var sqlQuery = `UPDATE STOCK_TBL
+                    var sqlQuery = `
+                    UPDATE STOCK_TBL
                     SET IN_QTY = IN_QTY + ${PRODUCT_QTY},
                         IN_PRICE = IN_PRICE + ${inPrice},
                         STOCK_QTY = STOCK_QTY + ${PRODUCT_QTY},
                         STOCK_PRICE = STOCK_PRICE + ${inPrice}
                     WHERE CUST_CODE = '${TO_CUST}'
-                    AND PRODUCT_CODE = '${PRODUCT_CODE}'
-                    AND STOCK_DATE = '${stockDate}'`
+                        AND PRODUCT_CODE = '${PRODUCT_CODE}'
+                        AND STOCK_DATE = '${stockDate}'`
                     console.log(sqlQuery);
                     await new mssql.Request().query(sqlQuery)
                 } else {
-                    var sqlQuery = `UPDATE STOCK_TBL
+                    var sqlQuery = `
+                    UPDATE STOCK_TBL
                     SET TRANS_QTY = TRANS_QTY + ${PRODUCT_QTY},
                         TRANS_PRICE = TRANS_PRICE + ${inPrice},
                         STOCK_QTY = STOCK_QTY + ${PRODUCT_QTY},
                         STOCK_PRICE = STOCK_PRICE + ${inPrice}
                     WHERE CUST_CODE = '${TO_CUST}'
-                    AND PRODUCT_CODE = '${PRODUCT_CODE}'
-                    AND STOCK_DATE = '${stockDate}'`
+                        AND PRODUCT_CODE = '${PRODUCT_CODE}'
+                        AND STOCK_DATE = '${stockDate}'`
                     console.log(sqlQuery);
                     await new mssql.Request().query(sqlQuery)
                 }
             }
         } else if (dateCount == "0" && dateHighCount != "0") {
-            var sqlQuery = `INSERT INTO STOCK_TBL (CUST_CODE, PRODUCT_CODE, STOCK_DATE,
-                TRANS_QTY, TRANS_PRICE,
-                IN_QTY, IN_PRICE,
-                OUT_QTY, OUT_PRICE,
-                STOCK_QTY, STOCK_PRICE)
-                SELECT TOP 1 
-                CUST_CODE, PRODUCT_CODE, '${currentDate}',
-                STOCK_QTY, STOCK_PRICE,
-                ${PRODUCT_QTY}, ${inPrice},
-                0, 0,
-                STOCK_QTY + ${PRODUCT_QTY}, STOCK_PRICE + ${inPrice}
-                FROM STOCK_TBL
-                WHERE CUST_CODE = '${TO_CUST}'
+            var sqlQuery = `
+            INSERT INTO STOCK_TBL 
+            (CUST_CODE, PRODUCT_CODE, STOCK_DATE, TRANS_QTY, TRANS_PRICE,
+            IN_QTY, IN_PRICE, OUT_QTY, OUT_PRICE, STOCK_QTY, STOCK_PRICE)
+            SELECT TOP 1 
+                CUST_CODE, PRODUCT_CODE, '${currentDate}', STOCK_QTY, STOCK_PRICE,
+                ${PRODUCT_QTY}, ${inPrice}, 0, 0, STOCK_QTY + ${PRODUCT_QTY}, STOCK_PRICE + ${inPrice}
+            FROM STOCK_TBL
+            WHERE CUST_CODE = '${TO_CUST}'
                 AND PRODUCT_CODE = '${PRODUCT_CODE}'
                 AND STOCK_DATE < '${currentDate}'
-                ORDER BY STOCK_DATE DESC`
+            ORDER BY STOCK_DATE DESC`
             console.log(sqlQuery);
             await new mssql.Request().query(sqlQuery)
 
-            var sqlQuery = `UPDATE STOCK_TBL
+            var sqlQuery = `
+            UPDATE STOCK_TBL
             SET TRANS_QTY = TRANS_QTY + ${PRODUCT_QTY},
                 TRANS_PRICE = TRANS_PRICE + ${inPrice},
                 STOCK_QTY = STOCK_QTY + ${PRODUCT_QTY},
                 STOCK_PRICE = STOCK_PRICE + ${inPrice}
             WHERE CUST_CODE = '${TO_CUST}'
-            AND PRODUCT_CODE = '${PRODUCT_CODE}'
-            AND STOCK_DATE > '${currentDate}'`
+                AND PRODUCT_CODE = '${PRODUCT_CODE}'
+                AND STOCK_DATE > '${currentDate}'`
             console.log(sqlQuery);
             await new mssql.Request().query(sqlQuery)
         } else if (dateCount != "0" && dateHighCount == "0") {
-            var sqlQuery = `UPDATE STOCK_TBL
+            var sqlQuery = `
+            UPDATE STOCK_TBL
             SET IN_QTY = IN_QTY + ${PRODUCT_QTY},
                 IN_PRICE = IN_PRICE + ${inPrice},
                 STOCK_QTY = STOCK_QTY + ${PRODUCT_QTY},
                 STOCK_PRICE = STOCK_PRICE + ${inPrice}
             WHERE CUST_CODE = '${TO_CUST}'
-            AND PRODUCT_CODE = '${PRODUCT_CODE}'
-            AND STOCK_DATE = '${currentDate}'`
+                AND PRODUCT_CODE = '${PRODUCT_CODE}'
+                AND STOCK_DATE = '${currentDate}'`
             console.log(sqlQuery);
             await new mssql.Request().query(sqlQuery)
         }
@@ -597,16 +596,14 @@ async function productStockIn(IN_NO, PRODUCT_CODE, TO_CUST, FROM_CUST, PRODUCT_Q
     // console.log(loading);
 
     try {
-        var sqlQuery = `INSERT INTO PRD_STOCK_TBL (IN_NO, SEQ_NO, INOUT_SEQ, PRODUCT_CODE,
-            INOUT_QTY, INOUT_COST,
-            P_CUST_CODE, F_CUST_CODE, INOUT_DATE,
-            DVR_NO, DVR_SEQ, END_YN)
-            SELECT '${IN_NO}', ISNULL(MAX(SEQ_NO),0) + 1, 0, '${PRODUCT_CODE}',
-                    ${PRODUCT_QTY}, ${PRODUCT_COST},
-                '${TO_CUST}', '${FROM_CUST}', '${currentDate}',
-                '', 0, 'N'
+        var sqlQuery = `INSERT INTO PRD_STOCK_TBL (IN_NO, SEQ_NO, INOUT_SEQ, PRODUCT_CODE, INOUT_QTY, INOUT_COST,
+            P_CUST_CODE, F_CUST_CODE, INOUT_DATE, DVR_NO, DVR_SEQ, END_YN)
+            SELECT 
+                '${IN_NO}', ISNULL(MAX(SEQ_NO),0) + 1, 0, '${PRODUCT_CODE}', ${PRODUCT_QTY}, ${PRODUCT_COST},
+                '${TO_CUST}', '${FROM_CUST}', '${currentDate}', '', 0, 'N'
             FROM PRD_STOCK_TBL WITH(NOLOCK)
             WHERE IN_NO = '${IN_NO}' `
+        console.log(sqlQuery);
         await new mssql.Request().query(sqlQuery)
     } catch (error) {
         console.error(`Error executing query: ${loading}`, error);
@@ -622,31 +619,39 @@ async function productStockTableDelivery(IN_NO, SEQ_NO, OUT_NO, dvrSeqNo, PRODUC
     // console.log(loading);
 
     try {
-        var sqlQuery = `INSERT INTO PRD_STOCK_TBL (IN_NO, SEQ_NO, INOUT_SEQ, PRODUCT_CODE,
-            INOUT_QTY, INOUT_COST,
-            P_CUST_CODE, F_CUST_CODE, INOUT_DATE,
-            DVR_NO, DVR_SEQ, END_YN)
-            SELECT '${IN_NO}',${SEQ_NO}, ISNULL(MAX(INOUT_SEQ),0) + 1,  '${PRODUCT_CODE}',
-                    ${Qty}, ${Cost},
-                '${TO_CUST}', '${FROM_CUST}', '${currentDate}',
-                '${OUT_NO}', ${dvrSeqNo}, 'N'
+        var sqlQuery = `INSERT INTO PRD_STOCK_TBL (IN_NO, SEQ_NO, INOUT_SEQ, PRODUCT_CODE, INOUT_QTY, INOUT_COST,
+            P_CUST_CODE, F_CUST_CODE, INOUT_DATE, DVR_NO, DVR_SEQ, END_YN)
+            SELECT 
+                '${IN_NO}',${SEQ_NO}, ISNULL(MAX(INOUT_SEQ),0) + 1,  '${PRODUCT_CODE}', ${Qty}, ${Cost},
+                '${TO_CUST}', '${FROM_CUST}', '${currentDate}', '${OUT_NO}', ${dvrSeqNo}, 'N'
             FROM PRD_STOCK_TBL WITH(NOLOCK)
             WHERE IN_NO = '${IN_NO}' AND SEQ_NO = ${SEQ_NO}`
         await new mssql.Request().query(sqlQuery)
 
         sqlQuery = `SELECT
         (SELECT INOUT_QTY FROM PRD_STOCK_TBL WITH(NOLOCK)
-          WHERE IN_NO = '${IN_NO}' AND SEQ_NO = ${SEQ_NO} AND PRODUCT_CODE = '${PRODUCT_CODE}' AND INOUT_SEQ = 0) AS IN_QTY,
+          WHERE IN_NO = '${IN_NO}' 
+            AND SEQ_NO = ${SEQ_NO} 
+            AND PRODUCT_CODE = '${PRODUCT_CODE}' 
+            AND INOUT_SEQ = 0
+        ) AS IN_QTY,
         (SELECT SUM(INOUT_QTY) FROM PRD_STOCK_TBL WITH(NOLOCK)
-          WHERE IN_NO = '${IN_NO}' AND SEQ_NO = ${SEQ_NO} AND PRODUCT_CODE = '${PRODUCT_CODE}' AND INOUT_SEQ > 0) AS OUT_QTY`
+          WHERE IN_NO = '${IN_NO}' 
+          AND SEQ_NO = ${SEQ_NO} 
+          AND PRODUCT_CODE = '${PRODUCT_CODE}' 
+          AND INOUT_SEQ > 0
+        ) AS OUT_QTY`
         var result = await new mssql.Request().query(sqlQuery)
         var row = result.recordset[0]
         var inQty = parseFloat(row["IN_QTY"])
         var outQty = parseFloat(row["OUT_QTY"])
 
         if (inQty <= outQty) {
-            var sqlQuery = `UPDATE PRD_STOCK_TBL SET END_YN = 'Y' 
-            WHERE IN_NO = '${IN_NO}' AND SEQ_NO = ${SEQ_NO}`
+            var sqlQuery = `
+            UPDATE PRD_STOCK_TBL SET 
+            END_YN = 'Y' 
+            WHERE IN_NO = '${IN_NO}' 
+            AND SEQ_NO = ${SEQ_NO}`
             await new mssql.Request().query(sqlQuery)
         }
 
@@ -663,8 +668,12 @@ async function stockCustTableUpload(_CUST, PRODUCT_CODE) {
     loading += "- pending"
     // console.log(loading);
     sqlQuery = `SELECT STOCK_QTY, STOCK_PRICE FROM STOCK_TBL WITH(NOLOCK)
-                    WHERE CUST_CODE = '${_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}'
-                    AND STOCK_DATE = (SELECT MAX(STOCK_DATE) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE ='${_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}')`
+                WHERE CUST_CODE = '${_CUST}' 
+                    AND PRODUCT_CODE = '${PRODUCT_CODE}'
+                    AND STOCK_DATE = (SELECT MAX(STOCK_DATE) 
+                                        FROM STOCK_TBL WITH(NOLOCK) 
+                                        WHERE CUST_CODE ='${_CUST}' 
+                                        AND PRODUCT_CODE = '${PRODUCT_CODE}')`
     var result = await new mssql.Request().query(sqlQuery)
     var rows = result.recordset
 
@@ -677,20 +686,28 @@ async function stockCustTableUpload(_CUST, PRODUCT_CODE) {
         var sqlQuery = `DELETE FROM STOCK_CUST_TBL WHERE CUST_CODE = '${_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}'`
         await new mssql.Request().query(sqlQuery)
     } else {
-        sqlQuery = `SELECT COUNT(*) AS CNT FROM STOCK_CUST_TBL WITH(NOLOCK) WHERE CUST_CODE = '${_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}'`
+        sqlQuery = `
+        SELECT COUNT(*) AS CNT 
+        FROM STOCK_CUST_TBL WITH(NOLOCK) 
+        WHERE CUST_CODE = '${_CUST}' 
+            AND PRODUCT_CODE = '${PRODUCT_CODE}'`
         var result = await new mssql.Request().query(sqlQuery)
         var row = result.recordset[0]
         var count = row["CNT"]
 
         if (count == "0") {
-            var sqlQuery = `INSERT INTO STOCK_CUST_TBL (CUST_CODE, PRODUCT_CODE, STOCK_QTY, STOCK_PRICE)
-            VALUES ('${_CUST}','${PRODUCT_CODE}',${stockQty},${stockPrice})`
+            var sqlQuery = `INSERT INTO STOCK_CUST_TBL 
+            (CUST_CODE, PRODUCT_CODE, STOCK_QTY, STOCK_PRICE)
+            VALUES 
+            ('${_CUST}','${PRODUCT_CODE}',${stockQty},${stockPrice})`
             await new mssql.Request().query(sqlQuery)
         } else {
-            var sqlQuery = `UPDATE STOCK_CUST_TBL
+            var sqlQuery = `
+            UPDATE STOCK_CUST_TBL
             SET STOCK_QTY = ${stockQty},
                 STOCK_PRICE = ${stockPrice}
-            WHERE CUST_CODE = '${_CUST}' AND PRODUCT_CODE = '${PRODUCT_CODE}'`
+            WHERE CUST_CODE = '${_CUST}' 
+            AND PRODUCT_CODE = '${PRODUCT_CODE}'`
             await new mssql.Request().query(sqlQuery)
         }
     }
@@ -702,23 +719,15 @@ async function fabricOut(FROM_CUST, FABRIC_NO, PRODUCT_QTY, currentDate, current
     loading += "- pending"
     // console.log(loading);
 
-    var stockQty = 0
-    sqlQuery = `SELECT STOCK_QTY FROM FABRIC_STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${FROM_CUST}' AND IN_NO = '${FABRIC_NO}'`
-    var result = await new mssql.Request().query(sqlQuery)
-    var rows = result.recordset
-    if (rows.length == 0) stockQty = 0
-    else stockQty = rows[0]["STOCK_QTY"]
-    if (PRODUCT_QTY >= stockQty) {
-        var sqlQuery = `DELETE FROM FABRIC_STOCK_TBL WHERE CUST_CODE = '${FROM_CUST}' AND IN_NO = '${FABRIC_NO}'`
-        await new mssql.Request().query(sqlQuery)
-    } else {
-        var newStockQty = stockQty - parseInt(PRODUCT_QTY)
-        var sqlQuery = `UPDATE FABRIC_STOCK_TBL SET STOCK_QTY = ${newStockQty} WHERE CUST_CODE = '${FROM_CUST}'  AND IN_NO = '${FABRIC_NO}'`
-        await new mssql.Request().query(sqlQuery)
-    }
+    var sqlQuery = `DELETE FROM FABRIC_STOCK_TBL WHERE CUST_CODE = '${FROM_CUST}' AND IN_NO = '${FABRIC_NO}'`
+    await new mssql.Request().query(sqlQuery)
     var remark = "Update location"
-    var sqlQuery = `INSERT INTO FABRIC_INOUT_TBL (IN_NO, SEQ_NO, INOUT_DIV, INOUT_QTY, REG_DATE, REG_TIME, EMP_NO, REMARK)
-                        SELECT '${FABRIC_NO}', ISNULL(MAX(SEQ_NO), 0) + 1, '2', ${PRODUCT_QTY}, '${currentDate}', '${currentTime}', '${EMP_NO}', '${remark}'
+    var sqlQuery = `INSERT INTO FABRIC_INOUT_TBL 
+                    (IN_NO, SEQ_NO, INOUT_DIV, INOUT_QTY, REG_DATE,
+                    REG_TIME, EMP_NO, REMARK)
+                    SELECT 
+                        '${FABRIC_NO}', ISNULL(MAX(SEQ_NO), 0) + 1, '2', ${PRODUCT_QTY}, '${currentDate}', 
+                        '${currentTime}', '${EMP_NO}', '${remark}'
                         FROM FABRIC_INOUT_TBL WITH(NOLOCK)
                         WHERE IN_NO = '${FABRIC_NO}'`
     await new mssql.Request().query(sqlQuery)
@@ -734,13 +743,27 @@ async function fabricIn(FABRIC_NO, TO_CUST, PRODUCT_CODE, PRODUCT_QTY, currentDa
     var SEQ_NO = 1
     var INOUT_DIV = 1
 
-    var sqlQuery = `UPDATE FABRIC_IN_TBL SET IN_DATE='${currentDate2}', IN_TIME='${currentTime}', EMP_NO='${EMP_NO}' WHERE IN_NO = '${FABRIC_NO}'`
+    var sqlQuery = `
+    UPDATE FABRIC_IN_TBL 
+        SET IN_DATE='${currentDate2}', 
+        IN_TIME='${currentTime}', 
+        EMP_NO='${EMP_NO}' 
+    WHERE IN_NO = '${FABRIC_NO}'`
     await new mssql.Request().query(sqlQuery)
 
-    var sqlQuery = `UPDATE FABRIC_INOUT_TBL SET INOUT_QTY=${PRODUCT_QTY}, REG_DATE='${currentDate}', REG_TIME='${currentTime}', REMARK='${REMARK}' WHERE SEQ_NO=${SEQ_NO} AND INOUT_DIV=${INOUT_DIV}`
+    var sqlQuery = `
+    UPDATE FABRIC_INOUT_TBL SET 
+        INOUT_QTY=${PRODUCT_QTY}, 
+        REG_DATE='${currentDate}', 
+        REG_TIME='${currentTime}', 
+        REMARK='${REMARK}' 
+    WHERE SEQ_NO=${SEQ_NO} AND INOUT_DIV=${INOUT_DIV}`
     await new mssql.Request().query(sqlQuery)
 
-    var sqlQuery = `INSERT INTO FABRIC_STOCK_TBL (CUST_CODE, IN_NO, STOCK_QTY) VALUES ('${TO_CUST}', '${FABRIC_NO}', ${PRODUCT_QTY})`
+    var sqlQuery = `INSERT INTO FABRIC_STOCK_TBL 
+    (CUST_CODE, IN_NO, STOCK_QTY) 
+    VALUES 
+    ('${TO_CUST}', '${FABRIC_NO}', ${PRODUCT_QTY})`
     await new mssql.Request().query(sqlQuery)
     loading += " - done"
     // console.log(loading);
@@ -753,10 +776,12 @@ async function getFabricNo(req, res) {
         return res.json({ success: false, message: "PRODUCT_CODE must not be empty" });
     }
     try {
-        var sqlQuery = `SELECT C.CUST_NAME,A.IN_NO,A.STOCK_QTY FROM FABRIC_STOCK_TBL A 
-                            LEFT JOIN FABRIC_IN_TBL B ON A.IN_NO = B.IN_NO 
-                            LEFT JOIN CUSTOMER_TBL C ON C.CUST_CODE = A.CUST_CODE 
-                        WHERE B.PRODUCT_CODE='${PRODUCT_CODE}'`
+        var sqlQuery = `
+        SELECT C.CUST_NAME,A.IN_NO,A.STOCK_QTY 
+        FROM FABRIC_STOCK_TBL A 
+            LEFT JOIN FABRIC_IN_TBL B ON A.IN_NO = B.IN_NO 
+            LEFT JOIN CUSTOMER_TBL C ON C.CUST_CODE = A.CUST_CODE 
+        WHERE B.PRODUCT_CODE='${PRODUCT_CODE}'`
         var result = await new mssql.Request().query(sqlQuery);
         var rows = result.recordset
         var data = []
@@ -774,3 +799,29 @@ async function getFabricNo(req, res) {
     }
 }
 module.exports.getFabricNo = getFabricNo
+
+
+async function getCurrentFabricLocation(req, res) {
+    const FABRIC_NO = decodeURIComponent(req.query.FABRIC_NO) || "";
+    if (FABRIC_NO.length == 0) {
+
+        return res.json({ success: false, message: "FABRIC_NO must not be empty" });
+    }
+    var sqlQuery = `
+    SELECT 
+        B.CUST_LGR_CODE, B.CUST_MID_CODE, B.CUST_SML_CODE, B.CUST_CODE, 
+        C.CUST_LGR_NAME, D.CUST_MID_NAME, E.CUST_SML_NAME, B.CUST_NAME 
+    FROM FABRIC_STOCK_TBL A
+        LEFT JOIN CUSTOMER_TBL B ON A.CUST_CODE = B.CUST_CODE
+        LEFT JOIN CUST_LGR_TBL C ON B.CUST_LGR_CODE = C.CUST_LGR_CODE
+        LEFT JOIN CUST_MID_TBL D ON B.CUST_MID_CODE = D.CUST_MID_CODE AND D.CUST_LGR_CODE = B.CUST_LGR_CODE
+        LEFT JOIN CUST_SML_TBL E ON B.CUST_SML_CODE = E.CUST_SML_CODE AND E.CUST_MID_CODE = D.CUST_MID_CODE AND E.CUST_LGR_CODE = B.CUST_LGR_CODE
+    WHERE A.IN_NO = '${FABRIC_NO}'`
+    var result = await new mssql.Request().query(sqlQuery);
+    if (result.recordset.length == 0) {
+        return res.json({ success: false, message: "Can not find location of this fabric roll" });
+    }
+    var row = result.recordset[0]
+    res.json({ success: true, message: "SUCCESS", data: row });
+}
+module.exports.getCurrentFabricLocation = getCurrentFabricLocation
