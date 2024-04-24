@@ -14,7 +14,7 @@ async function updateFabricLocation(req, res) {
     const IMP_NO = decodeURIComponent(req.body.IMP_NO) || "";
     const DVR_NO = decodeURIComponent(req.body.DVR_NO) || "";
     const REMARK = decodeURIComponent(req.body.REMARK) || "";
-    const PAY_CODE = 20 // Move to another local warehouse
+    const PAY_CODE = 20 // Move OUT
     const dvrRemark = "Location Update"
     const inHNote = dvrRemark + "/Auto In Reg after Out Reg"
     console.log(`
@@ -825,3 +825,116 @@ async function getCurrentFabricLocation(req, res) {
     res.json({ success: true, message: "SUCCESS", data: row });
 }
 module.exports.getCurrentFabricLocation = getCurrentFabricLocation
+
+async function ProductionMove(req, res) {
+    const FROM_CUST = decodeURIComponent(req.body.FROM_CUST) || "";
+    const TO_CUST = decodeURIComponent(req.body.TO_CUST) || "";
+    const EMP_NO = decodeURIComponent(req.body.EMP_NO) || "";
+    const PRODUCT_CODE = decodeURIComponent(req.body.PRODUCT_CODE) || "";
+    const PRODUCT_QTY = decodeURIComponent(req.body.PRODUCT_QTY) || "";
+    const PAY_CODE = 20 // Move OUT
+    const dvrRemark = "Location Update"
+    const inHNote = dvrRemark + "/Auto In Reg after Out Reg"
+    try {
+        const currentDate = getCurrentDate(4)
+        const currentDate2 = getCurrentDate(2)
+        const currentTime = getCurrentTime()
+        const DVR_COST = 0 // Move to local warehouse, it have no cost
+        const DVR_QTY = parseFloat(PRODUCT_QTY)
+        const DVR_PRICE = DVR_COST * DVR_QTY
+        const PRODUCT_COST = await getProductCost(PRODUCT_CODE)
+        const OUT_NO = await insertDeliveryHTable(PAY_CODE, FROM_CUST, TO_CUST, inHNote, EMP_NO, currentDate, currentTime, currentDate2)
+        const IN_NO = await insertInHTable(PAY_CODE, FROM_CUST, TO_CUST, inHNote, EMP_NO, currentDate, currentTime, currentDate2)
+
+        await insert2DelevryDTable(OUT_NO, PRODUCT_CODE, PRODUCT_QTY, DVR_COST, DVR_PRICE)
+        await insert2InDTable(IN_NO, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST, DVR_COST, DVR_PRICE, inHNote)
+        await stockMove(OUT_NO, IN_NO, FROM_CUST, TO_CUST, currentDate, PRODUCT_CODE, PRODUCT_QTY, PRODUCT_COST)
+
+        return res.json({ success: true, message: "SUCCESS" });
+    } catch (error) {
+        console.error(`Error executing query: `, error);
+        res.status(500).json({ success: false, message: "An error occurred while processing the request" });
+
+    }
+}
+module.exports.ProductionMove = ProductionMove
+
+async function getProductStockInfo(req, res) {
+    const PRODUCT_CODE = decodeURIComponent(req.query.PRODUCT_CODE) || "";
+    if (PRODUCT_CODE == "") {
+        return res.json({ success: false, message: "PRODUCT_CODE must not be empty" });
+    }
+    const H_CODE = 23 //Product Stock
+    var tempCondition = ""
+    if (isNaN(parseInt(PRODUCT_CODE.charAt(8)))) {
+        tempCondition = "D.BARCODE"
+    } else {
+        tempCondition = "A.PRODUCT_CODE"
+    }
+
+    var sqlQuery = `
+    SELECT B.CUST_NAME, A.*, D.PRD_NAME, D.BARCODE, D.PRODUCT_COST, E.LGR_NAME, F.MID_NAME, G.DGN_NAME, H.COLOR_NAME 
+    FROM STOCK_CUST_TBL A
+        LEFT JOIN CUSTOMER_TBL B ON A.CUST_CODE = B.CUST_CODE
+        LEFT JOIN PMS_COMMON_CUST_D_TBL C ON A.CUST_CODE = C.CUST_CODE
+        LEFT JOIN PRODUCT_TBL D ON D.PRODUCT_CODE = A.PRODUCT_CODE
+        LEFT JOIN LGR_TBL E ON E.LGR_CODE = D.LGR_CODE
+        LEFT JOIN MID_TBL F ON F.MID_CODE = D.MID_CODE AND F.LGR_CODE = D.LGR_CODE
+        LEFT JOIN DESIGN_TBL G ON G.DGN_CODE = D.DGN_CODE
+        LEFT JOIN COLOR_TBL H ON H.COLOR_CODE = D.COLOR_CODE
+    WHERE ${tempCondition} ='${PRODUCT_CODE}' 
+    AND C.H_CODE='${H_CODE}'`
+    var result = await new mssql.Request().query(sqlQuery)
+    var rows = result.recordset
+    if (rows.length == 0) {
+        return res.json({ success: false, message: "Just only finished product in stock" });
+    }
+    var data = []
+    for (const row of rows) {
+        var js = {}
+        js.CUST_NAME = row["CUST_NAME"]
+        js.PRODUCT_CODE = row["PRODUCT_CODE"]
+        js.STOCK_QTY = row["STOCK_QTY"]
+        js.PRD_NAME = row["PRD_NAME"]
+        js.PRODUCT_COST = row["PRODUCT_COST"]
+        js.CATEGORY = row["LGR_NAME"] + " / " + row["MID_NAME"]
+        js.DGN_NAME = row["DGN_NAME"]
+        js.COLOR_NAME = row["COLOR_NAME"]
+        js.BARCODE = row["BARCODE"]
+        data.push(js)
+    }
+    res.json({ success: true, message: "SUCCESS", data });
+
+}
+module.exports.getProductStockInfo = getProductStockInfo
+
+async function findProductByName(req, res) {
+    const PRODUCT_NAME = decodeURIComponent(req.query.PRODUCT_NAME) || "";
+    const H_CODE = 23 //Product Stock
+    if (PRODUCT_NAME == "") {
+        return res.json({ success: false, message: "PRODUCT_NAME must not be empty" });
+    }
+    var sqlQuery = `
+    SELECT A.PRODUCT_CODE, B.PRD_NAME 
+    FROM STOCK_CUST_TBL A
+        LEFT JOIN PRODUCT_TBL B ON A.PRODUCT_CODE = B.PRODUCT_CODE
+        LEFT JOIN CUSTOMER_TBL C ON A.CUST_CODE = C.CUST_CODE
+        LEFT JOIN PMS_COMMON_CUST_D_TBL E ON A.CUST_CODE = E.CUST_CODE
+    WHERE B.PRD_NAME LIKE '%${PRODUCT_NAME}%'
+        AND E.H_CODE='${H_CODE}'`
+    var result = await new mssql.Request().query(sqlQuery)
+    var rows = result.recordset
+    if (rows.length == 0) {
+        return res.json({ success: false, message: "Can not find any product with that name" });
+    }
+    var data = []
+    for (const row of rows) {
+        var js = {}
+        js.PRODUCT_CODE = row["PRODUCT_CODE"]
+        js.PRD_NAME = row["PRD_NAME"]
+        data.push(js)
+    }
+    res.json({ success: true, message: "SUCCESS", data });
+
+}
+module.exports.findProductByName = findProductByName

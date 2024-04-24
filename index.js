@@ -99,4 +99,16 @@ app.get('/main/get_current_fabric_location', function (req, res) {
     console.log("/main/get_current_fabric_location - GET");
     func2.getCurrentFabricLocation(req, res)
 })
+app.get('/main/get_product_stock_info', function (req, res) {
+    console.log("/main/get_product_stock_info - GET");
+    func2.getProductStockInfo(req, res)
+})
+app.get('/main/find_product_by_name', function (req, res) {
+    console.log("/main/find_product_by_name - GET");
+    func2.findProductByName(req, res)
+})
+app.post('/main/production_move', function (req, res) {
+    console.log("/main/production_move - GET");
+    func2.ProductionMove(req, res)
+})
 
