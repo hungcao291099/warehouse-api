@@ -23,6 +23,7 @@ var config = {
 async function keepAlive() {
     try {
         await mssql.connect(config);
+        await new mssql.Request().query`SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED`;
     } catch (err) {
         console.error("DB connect ERROR:", err);
     }
@@ -106,6 +107,10 @@ app.get('/main/get_product_stock_info', function (req, res) {
 app.get('/main/find_product_by_name', function (req, res) {
     console.log("/main/find_product_by_name - GET");
     func2.findProductByName(req, res)
+})
+app.get('/main/test', function (req, res) {
+    console.log("/main/test - GET");
+    func2.test(req, res)
 })
 app.post('/main/production_move', function (req, res) {
     console.log("/main/production_move - GET");
