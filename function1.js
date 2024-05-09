@@ -54,10 +54,14 @@ async function getFabricInfo(req, res) {
         return; // Return early if emp_no is empty
     }
     let ls_sqlQuery = `
-    SELECT C.CUST_CODE, C.CUST_NAME, B.PRODUCT_CODE, D.PRD_NAME, A.STOCK_QTY, B.IMP_LOT_NO, B.DVR_LOT_NO, B.REMARK 
+    SELECT C.CUST_CODE, C.CUST_NAME, B.PRODUCT_CODE, D.PRD_NAME, A.STOCK_QTY, B.IMP_LOT_NO, B.DVR_LOT_NO, B.REMARK, E.SIZE_NAME,
+           (SELECT TOP 1 COUNTRY_NAME 
+             FROM TMP_CO_IMPORT_PRODUCT_STOCK_TBL 
+            WHERE PRODUCT_CODE = B.PRODUCT_CODE)  AS COUNTRY
       FROM FABRIC_STOCK_TBL A LEFT JOIN FABRIC_IN_TBL B ON A.IN_NO = B.IN_NO 
                               LEFT JOIN CUSTOMER_TBL C ON C.CUST_CODE = A.CUST_CODE 
                               LEFT JOIN PRODUCT_TBL D ON D.PRODUCT_CODE = B.PRODUCT_CODE 
+                              LEFT JOIN SIZE_TBL E ON E.SIZE_CODE = D.SIZE_CODE
      WHERE A.IN_NO = '${ls_fabricNo}'`
     let dt = await new mssql.Request().query(ls_sqlQuery)
     let dr = dt.recordset
@@ -73,6 +77,8 @@ async function getFabricInfo(req, res) {
         js.IMP_LOT_NO = dr[0]["IMP_LOT_NO"]
         js.DVR_LOT_NO = dr[0]["DVR_LOT_NO"]
         js.REMARK = dr[0]["REMARK"]
+        js.SIZE = dr[0]["SIZE_NAME"]
+        js.COUNTRY = dr[0]["COUNTRY"]
         res.json({ success: true, message: "SUCCESS", data: js });
     }
 

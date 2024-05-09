@@ -5,8 +5,8 @@ var bodyParser = require('body-parser');
 var path = require('path');
 var app = express();
 app.use(cors())
-app.listen(3011, function () {
-    console.log('Server started: ' + (3011));
+app.listen(3012, function () {
+    console.log('Server started: ' + (3012));
 })
 app.use(express.static(path.join(__dirname, 'html')));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: false }));
