@@ -55,9 +55,9 @@ async function getFabricInfo(req, res) {
     }
     let ls_sqlQuery = `
     SELECT C.CUST_CODE, C.CUST_NAME, B.PRODUCT_CODE, D.PRD_NAME, A.STOCK_QTY, B.IMP_LOT_NO, B.DVR_LOT_NO, B.REMARK, E.SIZE_NAME,
-           (SELECT TOP 1 COUNTRY_NAME 
+           ISNULL((SELECT TOP 1 COUNTRY_NAME 
              FROM TMP_CO_IMPORT_PRODUCT_STOCK_TBL 
-            WHERE PRODUCT_CODE = B.PRODUCT_CODE)  AS COUNTRY
+            WHERE PRODUCT_CODE = B.PRODUCT_CODE),'Local')  AS COUNTRY
       FROM FABRIC_STOCK_TBL A LEFT JOIN FABRIC_IN_TBL B ON A.IN_NO = B.IN_NO 
                               LEFT JOIN CUSTOMER_TBL C ON C.CUST_CODE = A.CUST_CODE 
                               LEFT JOIN PRODUCT_TBL D ON D.PRODUCT_CODE = B.PRODUCT_CODE 
@@ -86,7 +86,7 @@ async function getFabricInfo(req, res) {
 module.exports.getFabricInfo = getFabricInfo
 
 async function getMID(req, res) {
-    const ls_lgrCode = 5 //Warehouse
+    const ls_lgrCode = '5' //Warehouse
     let ls_sqlQuery = `SELECT CUST_MID_CODE,CUST_MID_NAME FROM CUST_MID_TBL WHERE CUST_LGR_CODE = '${ls_lgrCode}'`
     let dt = await new mssql.Request().query(ls_sqlQuery);
     let dr = dt.recordset
@@ -104,6 +104,69 @@ async function getMID(req, res) {
 }
 module.exports.getMID = getMID
 
+async function addMID(req, res) {
+    const ls_lgrCode = '5' //Warehouse
+    const ls_midCode = await createMIDCode(ls_lgrCode)
+    const ls_midName = decodeURIComponent(req.body.MID_NAME) || "";
+    try {
+        let ls_sqlQuery = `
+        INSERT INTO CUST_MID_TBL (CUST_LGR_CODE, CUST_MID_CODE, CUST_MID_NAME, CUST_MID_NAME_ENG)
+        VALUES ('${ls_lgrCode}','${ls_midCode}','${ls_midName}','')`
+        console.log(ls_sqlQuery);
+        await new mssql.Request().query(ls_sqlQuery)
+        res.json({ success: true, message: "SUCCESS" });
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: "failed", error });
+    }
+}
+module.exports.addMID = addMID
+
+async function updateMID(req, res) {
+    const ls_lgrCode = '5' //Warehouse
+    const ls_midCode = decodeURIComponent(req.body.MID_CODE) || "";
+    const ls_midName = decodeURIComponent(req.body.MID_NAME) || "";
+    try {
+        let ls_sqlQuery = `
+        UPDATE CUST_MID_TBL SET CUST_MID_NAME = '${ls_midName}'
+        WHERE CUST_LGR_CODE = '${ls_lgrCode}' 
+          AND CUST_MID_CODE = '${ls_midCode}'`
+        await new mssql.Request().query(ls_sqlQuery)
+        res.json({ success: true, message: "SUCCESS" });
+    } catch (error) {
+        res.json({ success: false, message: "failed", error });
+    }
+}
+module.exports.updateMID = updateMID
+
+async function deleteMID(req, res) {
+    const ls_midCode = decodeURIComponent(req.body.MID_CODE) || "";
+    try {
+        let ls_sqlQuery = `
+        DELETE FROM CUST_MID_TBL WHERE CUST_MID_CODE = '${ls_midCode}'`
+        await new mssql.Request().query(ls_sqlQuery)
+        res.json({ success: true, message: "SUCCESS" });
+    } catch (error) {
+        res.json({ success: false, message: "failed", error });
+    }
+}
+module.exports.deleteMID = deleteMID
+
+
+async function createMIDCode(_custLgrCode) {
+    let ls_sqlQuery = `
+    SELECT CUST_MID_CODE 
+      FROM CUST_MID_TBL 
+     WHERE CUST_LGR_CODE = '${_custLgrCode}'`
+    let dt = await new mssql.Request().query(ls_sqlQuery)
+    let dr = dt.recordset
+    let li_newIndex = 0
+    if (dr.length > 0) {
+        li_newIndex = parseInt(dr[dr.length - 1]["CUST_MID_CODE"])
+    }
+    return String(li_newIndex + 1).padStart(2, 0)
+
+}
 async function getSML(req, res) {
     const ls_lgrCode = 5 //Warehouse
     const ls_midCode = decodeURIComponent(req.query.MID_CODE) || "";
@@ -236,7 +299,10 @@ async function updateCustCode(req, res) {
     }
 
     try {
-        let ls_sqlQuery = `UPDATE CUSTOMER_TBL SET CUST_NAME = '${ls_custName}' WHERE CUST_CODE='${ls_custCode}'`
+        let ls_sqlQuery = `
+        UPDATE CUSTOMER_TBL 
+           SET CUST_NAME = '${ls_custName}' 
+         WHERE CUST_CODE='${ls_custCode}'`
         await new mssql.Request().query(ls_sqlQuery)
         res.json({ success: true, message: "SUCCESS" });
     } catch (error) {
@@ -258,7 +324,7 @@ async function addCust(req, res) {
         res.json({ success: false, message: "MID_CODE and SML_CODE and CUST_NAME and EMP_NO must not be empty" });
         return;
     }
-    const ls_newCust = await getCustCode(MID_CODE, SML_CODE)
+    const ls_newCust = await getCustCode(ls_midCode, ls_smlCode)
     try {
         let ls_sqlQuery = `
             INSERT INTO CUSTOMER_TBL (CUST_CODE, CUST_NAME, CUST_NAME_ENG, CUST_LGR_CODE, CUST_MID_CODE, 
@@ -309,8 +375,8 @@ async function deleteSML(req, res) {
         let ls_sqlQuery = `
         DELETE CUST_SML_TBL 
          WHERE CUST_LGR_CODE = '${ls_lgrCode}' 
-           AND CUST_MID_CODE ='${ls_midCode}' 
-           AND CUST_SML_CODE ='${ls_smlCode}'`
+           AND CUST_MID_CODE = '${ls_midCode}' 
+           AND CUST_SML_CODE = '${ls_smlCode}'`
         await new mssql.Request().query(ls_sqlQuery)
         res.json({ success: true, message: "SUCCESS" })
     } catch (error) {
@@ -350,3 +416,83 @@ function getCurrentTime() {
     return `${ls_hour}${ls_minute}`; //HHmm
 
 }
+async function getLGR(req, res) {
+    let ls_sqlQuery = `
+    SELECT CUST_LGR_CODE, CUST_LGR_NAME, CUST_LGR_NAME_ENG 
+      FROM CUST_LGR_TBL WITH(NOLOCK) 
+     ORDER BY CUST_LGR_CODE`
+    try {
+        let dt = await new mssql.Request().query(ls_sqlQuery);
+        let dr = dt.recordset
+        let data = [];
+
+        for (let row of dr) {
+            let js = {};
+            js.CODE = row["CUST_LGR_CODE"];
+            js.NAME = row["CUST_LGR_NAME"];
+            data.push(js);
+        }
+        res.json({ success: true, message: "SUCCESS", data });
+    } catch (error) {
+        res.json({ success: false, message: "failed", error });
+    }
+}
+module.exports.getLGR = getLGR
+
+async function addLGR(req, res) {
+    const lgr_Name = decodeURIComponent(req.body.LGR_NAME) || "";
+    const lgr_Code = await createLgrCode()
+    try {
+        let ls_sqlQuery = `
+        INSERT INTO CUST_LGR_TBL (CUST_LGR_CODE, CUST_LGR_NAME, CUST_LGR_NAME_ENG)
+        VALUES ('${lgr_Code}','${lgr_Name}','')`
+        await new mssql.Request().query(ls_sqlQuery)
+        res.json({ success: true, message: "SUCCESS" });
+    } catch (error) {
+        res.json({ success: false, message: "failed", error });
+    }
+}
+module.exports.addLGR = addLGR
+
+async function createLgrCode() {
+    let ls_sqlQuery = `
+    SELECT CUST_LGR_CODE, CUST_LGR_NAME, CUST_LGR_NAME_ENG 
+      FROM CUST_LGR_TBL WITH(NOLOCK) 
+     ORDER BY CUST_LGR_CODE`
+    let dt = await new mssql.Request().query(ls_sqlQuery)
+    let dr = dt.recordset
+
+    let li_index = 0
+    if (dr.length > 0) {
+        li_index = Number(dr[dr.length - 1]["CUST_LGR_CODE"])
+    }
+    return li_index + 1
+}
+
+async function updateLGR(req, res) {
+    const lgr_Name = decodeURIComponent(req.body.LGR_NAME) || "";
+    const lgr_Code = decodeURIComponent(req.body.LGR_CODE) || "";
+    try {
+        let ls_sqlQuery = `
+        UPDATE CUST_LGR_TBL 
+           SET CUST_LGR_NAME = '${lgr_Name}' 
+         WHERE CUST_LGR_CODE = '${lgr_Code}'`
+        await new mssql.Request().query(ls_sqlQuery)
+        res.json({ success: true, message: "SUCCESS" });
+    } catch (error) {
+        res.json({ success: false, message: "failed", error });
+    }
+}
+module.exports.updateLGR = updateLGR
+
+async function deleteLGR(req, res) {
+    const lgr_Code = decodeURIComponent(req.body.LGR_CODE) || "";
+    try {
+        let ls_sqlQuery = `DELETE FROM CUST_LGR_TBL WHERE CUST_LGR_CODE = '${lgr_Code}'`
+        await new mssql.Request().query(ls_sqlQuery)
+        res.json({ success: true, message: "SUCCESS" });
+    } catch (error) {
+        res.json({ success: false, message: "failed", error });
+    }
+}
+module.exports.deleteLGR = deleteLGR

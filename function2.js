@@ -774,7 +774,6 @@ async function ProductionMove(req, res) {
         return res.json({ success: true, message: "SUCCESS" });
     } catch (error) {
         // console.log(error);
-        throw error
         console.error(`Error executing query: `, error);
         res.status(500).json({ success: false, message: "An error occurred while processing the request" });
 
@@ -885,7 +884,6 @@ async function test(req, res) {
         res.json({ success: true, message: "SUCCESS", js });
     } catch (error) {
         // console.log(error);
-        throw error
         res.json({ success: false, message: "failed", error });
 
     }
@@ -903,3 +901,5 @@ async function test(req, res) {
     // res.json({ success: true, message: `Transaction Isolation Level: ${dt.recordset[0].TRANSACTION_ISOLATION_LEVEL}` });
 }
 module.exports.test = test
+
+

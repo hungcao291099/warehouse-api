@@ -39,7 +39,31 @@ func1.settingDb(mssql);
 var func2 = require("./function2.js");
 func2.settingDb(mssql);
 
-
+app.get('/get_db_config', function (req, res) {
+    console.log("/get_db_config - GET");
+    let cf = {}
+    cf.user = config.user
+    cf.password = config.password
+    cf.server = config.server
+    cf.database = config.database
+    res.json({ config: cf })
+})
+app.post('/upd_db_config', function (req, res) {
+    console.log("/upd_db_config - POST");
+    const user = decodeURIComponent(req.body.user) || "";
+    const password = decodeURIComponent(req.body.password) || "";
+    const server = decodeURIComponent(req.body.server) || "";
+    const database = decodeURIComponent(req.body.database) || "";
+    if (user == "" || password == "" || server == "" || database == "") {
+        res.status(500).json({ success: false, message: "1 of these fields has null" });
+    } else {
+        config.user = user
+        config.database = database
+        config.password = password
+        config.server = server
+        res.json({ success: true, message: "SUCCESS" })
+    }
+})
 app.get('/main/get_emp_nm', function (req, res) {
     console.log("/main/get_emp_nm - GET");
     func1.empNo2Name(req, res)
@@ -55,6 +79,18 @@ app.get('/main/get_fabric_info', function (req, res) {
 app.get('/main/get_MID', function (req, res) {
     console.log("/main/get_MID - GET");
     func1.getMID(req, res)
+})
+app.post('/main/add_mid', function (req, res) {
+    console.log("/main/add_mid - POST");
+    func1.addMID(req, res)
+})
+app.post('/main/update_mid', function (req, res) {
+    console.log("/main/update_mid - POST");
+    func1.updateMID(req, res)
+})
+app.post('/main/delete_mid', function (req, res) {
+    console.log("/main/delete_mid - POST");
+    func1.deleteMID(req, res)
 })
 app.get('/main/get_SML', function (req, res) {
     console.log("/main/get_SML - GET");
@@ -116,4 +152,19 @@ app.post('/main/production_move', function (req, res) {
     console.log("/main/production_move - GET");
     func2.ProductionMove(req, res)
 })
-
+app.get('/main/get_LGR', function (req, res) {
+    console.log("/main/get_LGR - GET");
+    func1.getLGR(req, res)
+})
+app.post('/main/add_lgr', function (req, res) {
+    console.log("/main/add_lgr - POST");
+    func1.addLGR(req, res)
+})
+app.post('/main/update_lgr', function (req, res) {
+    console.log("/main/update_lgr - POST");
+    func1.updateLGR(req, res)
+})
+app.post('/main/delete_lgr', function (req, res) {
+    console.log("/main/delete_lgr - POST");
+    func1.deleteLGR(req, res)
+})
