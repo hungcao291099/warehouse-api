@@ -4,9 +4,10 @@ var mssql = require("mssql");
 var bodyParser = require('body-parser');
 var path = require('path');
 var app = express();
+let port = 3012
 app.use(cors())
-app.listen(3012, function () {
-    console.log('Server started: ' + (3012));
+app.listen(port, function () {
+    console.log('Server started: ' + (port));
 })
 app.use(express.static(path.join(__dirname, 'html')));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: false }));
@@ -63,6 +64,21 @@ app.post('/upd_db_config', function (req, res) {
         config.server = server
         res.json({ success: true, message: "SUCCESS" })
     }
+})
+app.get('/test', function (req, res) {
+    let data = {}
+    data.API_IP = req.hostname
+    data.API_PORT = port.toString()
+    data.DB_IP = config.server
+    data.err = ""
+    try {
+        new mssql.Request().query('SELECT 1 AS number')
+        data.DB_connected = true
+    } catch (error) {
+        data.DB_connected = false
+        data.err = error
+    }
+    res.json({ data })
 })
 app.get('/main/get_emp_nm', function (req, res) {
     console.log("/main/get_emp_nm - GET");
@@ -144,10 +160,7 @@ app.get('/main/find_product_by_name', function (req, res) {
     console.log("/main/find_product_by_name - GET");
     func2.findProductByName(req, res)
 })
-app.get('/main/test', function (req, res) {
-    console.log("/main/test - GET");
-    func2.test(req, res)
-})
+
 app.post('/main/production_move', function (req, res) {
     console.log("/main/production_move - GET");
     func2.ProductionMove(req, res)
