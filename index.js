@@ -181,3 +181,11 @@ app.post('/main/delete_lgr', function (req, res) {
     console.log("/main/delete_lgr - POST");
     func1.deleteLGR(req, res)
 })
+app.get('/main/get_fabric_out_list', function (req, res) {
+    console.log("/main/get_fabric_out_list - GET");
+    func2.getWorkOrdBOMMove(req, res)
+})
+app.post('/main/move_to_workshop', function (req, res) {
+    console.log("/main/move_to_workshop - POST");
+    func2.move2Workshop(req, res)
+})

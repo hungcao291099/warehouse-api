@@ -18,6 +18,7 @@ async function updateFabricLocation(req, res) {
     const ls_InpayCode = "10" // Move IN
     const ls_dvrRemark = "Location Update"
     const ls_inHNote = ls_dvrRemark + "/Auto In Reg after Out Reg"
+    const lf_productCost = await getProductCost(ls_productCode)
 
     try {
         const ls_date_YYYYMMdd = getCurrentDate(4)
@@ -26,7 +27,6 @@ async function updateFabricLocation(req, res) {
         const lf_deliveryCost = 0 // Move to local warehouse, it have no cost
         const lf_deliveryQty = parseFloat(li_prdQty)
         const lf_deliveryPrice = lf_deliveryCost * lf_deliveryQty
-        const lf_productCost = await getProductCost(ls_productCode)
         const ls_deliveryNo = await insertDeliveryHTable(ls_OutpayCode, ls_fCustCode, ls_pCustCode, ls_inHNote, ls_empNo, ls_date_YYYYMMdd, ls_time_HHmm, ls_date_YYMMdd)
         const ls_inNo = await insertInHTable(ls_InpayCode, ls_fCustCode, ls_pCustCode, ls_inHNote, ls_empNo, ls_date_YYYYMMdd, ls_time_HHmm, ls_date_YYMMdd)
 
@@ -183,10 +183,11 @@ async function insert2InDTable(_inNo, _prdCode, _inQty, _inCost, _inPrice, _inHN
     }
 }
 
-async function stockMove(_dvrNo, _inNo, _fCustCode, _pCustCode, _dateYYYY, _prdCode, _dvrQty, _prdCost) {
+async function stockMove(_dvrNo, _inNo, _fCustCode, _pCustCode, _dateYYYY, _prdCode, _dvrQty) {
     let lf_totalOutQty = parseFloat(_dvrQty)
     let lf_totalPrice = 0
     let ls_dvrSeqNo = 1
+    const lf_productCost = await getProductCost(ls_productCode)
     try {
         let ls_sqlQuery = `
         SELECT A.IN_NO, A.SEQ_NO, A.INOUT_DATE, A.INOUT_COST, A.INOUT_QTY AS IN_QTY,
@@ -202,9 +203,9 @@ async function stockMove(_dvrNo, _inNo, _fCustCode, _pCustCode, _dateYYYY, _prdC
         let dt = await new mssql.Request().query(ls_sqlQuery)
         let dr = dt.recordset
         if (dr.length == 0) {
-            await stockTabelDelivery(_fCustCode, _prdCode, _dvrQty, _prdCost, _dateYYYY)
-            await stockTableIn(_pCustCode, _prdCode, _dvrQty, _prdCost, _dateYYYY)
-            await productStockIn(_inNo, _prdCode, _pCustCode, _fCustCode, _dvrQty, _prdCost, _dateYYYY)
+            await stockTabelDelivery(_fCustCode, _prdCode, _dvrQty, lf_productCost, _dateYYYY)
+            await stockTableIn(_pCustCode, _prdCode, _dvrQty, lf_productCost, _dateYYYY)
+            await productStockIn(_inNo, _prdCode, _pCustCode, _fCustCode, _dvrQty, lf_productCost, _dateYYYY)
             lf_totalOutQty = 0
         } else {
             for (const row of dr) {
@@ -775,7 +776,7 @@ async function ProductionMove(req, res) {
     } catch (error) {
         // console.log(error);
         console.error(`Error executing query: `, error);
-        res.status(500).json({ success: false, message: "An error occurred while processing the request" });
+        res.status(500).json({ success: false, message: "An error occurred while processing the request ", error: error.message });
 
     }
 }
@@ -861,45 +862,120 @@ async function findProductByName(req, res) {
 }
 module.exports.findProductByName = findProductByName
 
-async function test(req, res) {
-    const pCustCode = decodeURIComponent(req.query.TO_CUST) || "";
-    const productCode = decodeURIComponent(req.query.PRODUCT_CODE) || "";
-    const date = getCurrentDate(4)
-    let ls_sqlQuery = `SELECT 
-    (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${pCustCode}' AND PRODUCT_CODE = '${productCode}') AS TOT_CNT,
-    (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${pCustCode}' AND PRODUCT_CODE = '${productCode}' AND STOCK_DATE = '${date}') AS DATE_CNT,
-    (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${pCustCode}' AND PRODUCT_CODE = '${productCode}' AND STOCK_DATE > '${date}') AS DATE_HIGH_CNT,
-    (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${pCustCode}' AND PRODUCT_CODE = '${productCode}' AND STOCK_DATE < '${date}') AS DATE_LOW_CNT`
-    console.log(ls_sqlQuery);
+async function getWorkOrdList(req, res) {
+    const ls_DateFrom = decodeURIComponent(req.query.DATE_FROM) || "";
+    const ls_DateTo = decodeURIComponent(req.query.DATE_TO) || "";
+    const ls_WorkOrdNo = decodeURIComponent(req.query.WORK_ORD_NO) || "";
+    let data = []
+    let ls_sqlQuery = `
+    SELECT A.WORK_ORD_NO, B.PRD_NAME
+     FROM WORK_ORD_TBL A LEFT JOIN PRODUCT_TBL B ON A.PRODUCT_CODE = B.PRODUCT_CODE  
+    WHERE A.REG_DATE BETWEEN '${ls_DateFrom}' AND '${ls_DateTo}'`
+
+    if (ls_WorkOrdNo != "") ls_sqlQuery += ` AND A.WORK_ORD_NO = '${ls_WorkOrdNo}'`
+    let dt = await new mssql.Request().query(ls_sqlQuery)
+    let dr = dt.recordset
+    for (const row of dr) {
+        let js = {}
+        js.WorkOrdNo = row['WORK_ORD_NO']
+        js.ProductName = row['PRD_NAME']
+        data.push(js)
+    }
+    res.json({ success: true, message: "SUCCESS", data });
+
+}
+module.exports.getWorkOrdList = getWorkOrdList
+
+async function getWorkOrdBOMMove(req, res) {
+    const ls_DateFrom = decodeURIComponent(req.query.DATE_FROM) || "";
+    const ls_DateTo = decodeURIComponent(req.query.DATE_TO) || "";
+    const ls_WorkOrdNo = decodeURIComponent(req.query.WORK_ORD_NO) || "";
+
+    let ls_sqlQuery = `
+    SELECT A.WORK_ORD_NO, A.PRODUCT_CODE, A.FABRIC_NO, C.PRD_NAME, A.TEMP_MOVE_DATE, 
+	       A.IN_QTY, A.REQ_QTY, A.TOT_MAKE_QTY
+     FROM WORK_ORD_BOM_MOVE_TBL A LEFT JOIN FABRIC_IN_TBL B ON A.FABRIC_NO = B.IN_NO
+							      LEFT JOIN PRODUCT_TBL C ON B.PRODUCT_CODE = C.PRODUCT_CODE
+    WHERE A.TEMP_MOVE_DATE BETWEEN '${ls_DateFrom}' AND '${ls_DateTo}'`
+
+    if (ls_WorkOrdNo != "") ls_sqlQuery += ` AND A.WORK_ORD_NO = '${ls_WorkOrdNo}'`
+    let dt = await new mssql.Request().query(ls_sqlQuery)
+    let dr = dt.recordset
+    let data = []
+    for (const row of dr) {
+        let js = {}
+        js.WORK_ORD_NO = row['WORK_ORD_NO']
+        js.PRODUCT_CODE = row['PRODUCT_CODE']
+        js.FABRIC_NO = row['FABRIC_NO']
+        js.PRD_NAME = row['PRD_NAME']
+        js.TEMP_MOVE_DATE = row['TEMP_MOVE_DATE']
+        js.IN_QTY = row['IN_QTY']
+        js.REQ_QTY = row['REQ_QTY']
+        js.TOT_MAKE_QTY = row['TOT_MAKE_QTY']
+        data.push(js)
+    }
+    res.json({ success: true, message: "SUCCESS", data });
+}
+module.exports.getWorkOrdBOMMove = getWorkOrdBOMMove
+
+async function move2Workshop(req, res) {
+    const ls_InoutCode_In = "10"
+    const ls_InoutCode_Dvr = "20"
+    const ls_workShopCustCode = "A10116003"
+    const ls_workShopTempCustCode = "A10116003" //Change this to new tempWorkshop
+    const ITEMS = req.body.ITEM || "";
+    const ls_empNo = decodeURIComponent(req.body.EMP_NO) || "";
     try {
-        // await new mssql.Request().query`SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED`;
+        for (const item of JSON.parse(ITEMS)) {
+            const ls_fabricNo = item.FABRIC_NO
+            const ls_productCode = item.PRODUCT_CODE
+            const lf_productQty = item.PRODUCT_QTY
+            const ls_workOrdNo = item.WORK_ORD_NO
+            console.log(ls_fabricNo);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            //const ls_Move_InNo = insertInHTable(ls_InoutCode_In, ls_workShopTempCustCode, ls_workShopCustCode, `W/O No: ${ls_workOrdNo} Output Warehouse From Order`, ls_empNo, getCurrentDate(4), getCurrentTime())
+            //const ls_Move_DvrNo = insertDeliveryHTable(ls_InoutCode_Dvr, ls_workShopTempCustCode, ls_workShopCustCode, `W/O No: ${ls_workOrdNo} Output Warehouse From Order`, ls_empNo, getCurrentDate(4), getCurrentTime())
+            // insert2DelevryDTable(ls_Move_DvrNo, ls_productCode, lf_productQty, 0)
+            // insert2InDTable(ls_Move_InNo, ls_productCode, lf_productQty, 0)
+            // stockMove(ls_Move_DvrNo, ls_Move_InNo, ls_workShopTempCustCode, ls_workShopCustCode, getCurrentDate(4), ls_productCode, lf_productQty)
+            // fabricOut(ls_workShopTempCustCode, ls_fabricNo, lf_productQty, getCurrentDate(4), getCurrentTime(), ls_empNo)
+            // insertCutInOutTable(ls_workOrdNo, ls_fabricNo, ls_productCode, lf_productQty, ls_empNo, getCurrentDate(4), getCurrentTime(), ls_Move_DvrNo, ls_Move_InNo)
+        }
+        res.json({ success: true, message: "SUCCESS" });
+    }
+    catch (error) {
+        console.error(`Error executing query: `, error);
+        res.status(500).json({ success: false, message: "An error occurred while processing the request ", error: error.message });
+    }
+}
+module.exports.move2Workshop = move2Workshop
+
+
+async function insertCutInOutTable(_workOrdNo, _fabricNo, _productCode, _outQty, _empNo, _dateYYYY, _timeHHmm, _moveDvrNo, _moveInNo) {
+    let ls_SeqNo_CutInout = await getSeqNoCutInOut(_workOrdNo)
+    let ls_sqlQuery = `
+    INSERT INTO CUT_INOUT_H_TBL (WORK_ORD_NO, SEQ_NO, PRODUCT_CODE, OUT_QTY, RET_QTY,
+                                REG_EMP_NO, REG_DATE, REG_TIME, IN_DVR_NO, IN_IN_NO,
+                                RET_DVR_NO, RET_IN_NO, REMARK)
+    VALUES ('${_workOrdNo}',${ls_SeqNo_CutInout},'${_productCode}',${_outQty},0,
+    '${_empNo}','${_dateYYYY}','${_timeHHmm}','${_moveDvrNo}','${_moveInNo}',
+    '','','Output Warehouse From Order')
+    
+    INSERT INTO CUT_INOUT_D_TBL (WORK_ORD_NO, SEQ_NO, FABRIC_IN_NO, IN_QTY, RET_QTY)
+    VALUES ('${_workOrdNo}',${ls_SeqNo_CutInout},'${_fabricNo}',${_outQty},0)`
+    try {
+        await new mssql.Request().query(ls_sqlQuery)
+    } catch (error) {
+        throw error
+    }
+}
+async function getSeqNoCutInOut(_workOrdNo) {
+    let ls_sqlQuery = `SELECT ISNULL(MAX(SEQ_NO),0) + 1 FROM CUT_INOUT_H_TBL WITH(NOLOCK) WHERE WORK_ORD_NO = '${_workOrdNo}'`
+    try {
         let dt = await new mssql.Request().query(ls_sqlQuery)
         let dr = dt.recordset
-        console.log(dr);
-        let js = {}
-        js.TOT_CNT = dr[0]["TOT_CNT"]
-        js.DATE_CNT = dr[0]["DATE_CNT"]
-        js.DATE_HIGH_CNT = dr[0]["DATE_HIGH_CNT"]
-        js.DATE_LOW_CNT = dr[0]["DATE_LOW_CNT"]
-        res.json({ success: true, message: "SUCCESS", js });
     } catch (error) {
-        // console.log(error);
-        res.json({ success: false, message: "failed", error });
-
+        throw error
     }
-    // let sqlQuery = `SELECT CASE transaction_isolation_level
-    // WHEN 0 THEN 'Unspecified'
-    // WHEN 1 THEN 'ReadUncomitted'
-    // WHEN 2 THEN 'ReadCommitted'
-    // WHEN 3 THEN 'Repeatable'
-    // WHEN 4 THEN 'Serializable'
-    // WHEN 5 THEN 'Snapshot'
-    // END AS TRANSACTION_ISOLATION_LEVEL
-    // FROM sys.dm_exec_sessions
-    // WHERE session_id = @@SPID`
-    // let dt = await new mssql.Request().query(sqlQuery)
-    // res.json({ success: true, message: `Transaction Isolation Level: ${dt.recordset[0].TRANSACTION_ISOLATION_LEVEL}` });
+    return dr[0][0].toString()
 }
-module.exports.test = test
-
-
