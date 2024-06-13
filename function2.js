@@ -33,8 +33,7 @@ async function updateFabricLocation(req, res) {
         await insert2DelevryDTable(ls_deliveryNo, ls_productCode, lf_deliveryQty, lf_productCost, lf_deliveryPrice)
         await insert2InDTable(ls_inNo, ls_productCode, lf_deliveryQty, lf_deliveryCost, lf_deliveryPrice, "", lf_productCost)
         await stockMove(ls_deliveryNo, ls_inNo, ls_fCustCode, ls_pCustCode, ls_date_YYYYMMdd, ls_productCode, lf_deliveryQty, lf_productCost)
-        await fabricOut(ls_fCustCode, ls_fabricNo, lf_deliveryQty, ls_date_YYYYMMdd, ls_time_HHmm, ls_empNo)
-        await fabricIn(ls_fabricNo, ls_pCustCode, ls_productCode, lf_deliveryQty, ls_date_YYYYMMdd, ls_time_HHmm, ls_empNo, ls_fabricImpNo, ls_fabricDvrNo, ls_fabricRemark, ls_date_YYMMdd)
+        await fabricMove(ls_pCustCode, ls_productCode, lf_deliveryQty, ls_fabricNo, ls_fabricRemark, ls_date_YYMMdd, ls_date_YYYYMMdd, ls_time_HHmm, ls_empNo)
         return res.json({ success: true, message: "SUCCESS" });
     } catch (error) {
         console.error(`Error executing query: `, error);
@@ -187,7 +186,7 @@ async function stockMove(_dvrNo, _inNo, _fCustCode, _pCustCode, _dateYYYY, _prdC
     let lf_totalOutQty = parseFloat(_dvrQty)
     let lf_totalPrice = 0
     let ls_dvrSeqNo = 1
-    const lf_productCost = await getProductCost(ls_productCode)
+    const lf_productCost = await getProductCost(_prdCode)
     try {
         let ls_sqlQuery = `
         SELECT A.IN_NO, A.SEQ_NO, A.INOUT_DATE, A.INOUT_COST, A.INOUT_QTY AS IN_QTY,
@@ -239,7 +238,6 @@ async function stockMove(_dvrNo, _inNo, _fCustCode, _pCustCode, _dateYYYY, _prdC
     } catch (error) {
         console.log("Error checking..", error);
         throw error
-
 
     }
 }
@@ -383,7 +381,6 @@ async function stockTableIn(_pCustCode, _prdCode, _inQty, _prdCost, _inDate) {
         (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${_pCustCode}' AND PRODUCT_CODE = '${_prdCode}' AND STOCK_DATE = '${_inDate}') AS DATE_CNT,
         (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${_pCustCode}' AND PRODUCT_CODE = '${_prdCode}' AND STOCK_DATE > '${_inDate}') AS DATE_HIGH_CNT,
         (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '${_pCustCode}' AND PRODUCT_CODE = '${_prdCode}' AND STOCK_DATE < '${_inDate}') AS DATE_LOW_CNT`
-        console.log(ls_sqlQuery);
         let dt = await new mssql.Request().query(ls_sqlQuery)
         let dr = dt.recordset
         const li_totalCount = dr[0]["TOT_CNT"]
@@ -396,7 +393,6 @@ async function stockTableIn(_pCustCode, _prdCode, _inQty, _prdCost, _inDate) {
                                    IN_QTY, IN_PRICE, OUT_QTY, OUT_PRICE,STOCK_QTY, STOCK_PRICE)
             VALUES ('${_pCustCode}', '${_prdCode}', '00000000', 0, 0,
                     0, 0, 0, 0, 0, 0 )`
-            console.log(ls_sqlQuery);
             await new mssql.Request().query(ls_sqlQuery)
         }
         if (li_dateCount == 0 && li_dateHighCount == 0) {
@@ -408,7 +404,6 @@ async function stockTableIn(_pCustCode, _prdCode, _inQty, _prdCost, _inDate) {
                 VALUES ('${_pCustCode}', '${_prdCode}', '${_inDate}', 0, 0,
                         ${_inQty}, ${lf_inPrice}, 0, 0, ${_inQty}, ${lf_inPrice})`
 
-                console.log(ls_sqlQuery);
                 await new mssql.Request().query(ls_sqlQuery)
             } else {
                 ls_sqlQuery = `
@@ -421,7 +416,6 @@ async function stockTableIn(_pCustCode, _prdCode, _inQty, _prdCost, _inDate) {
                    AND PRODUCT_CODE = '${_prdCode}'
                    AND STOCK_DATE < '${_inDate}'
                  ORDER BY STOCK_DATE DESC`
-                console.log(ls_sqlQuery);
                 await new mssql.Request().query(ls_sqlQuery)
             }
         } else if (li_dateCount != 0 && li_dateHighCount != 0) {
@@ -433,7 +427,6 @@ async function stockTableIn(_pCustCode, _prdCode, _inQty, _prdCost, _inDate) {
              WHERE CUST_CODE = '${_pCustCode}'
                AND PRODUCT_CODE = '${_prdCode}'
                AND STOCK_DATE = '${_inDate}'`
-            console.log(ls_sqlQuery);
             await new mssql.Request().query(ls_sqlQuery)
         } else if (li_dateCount != 0 && li_dateHighCount != 0) {
             let ls_sqlQuery = `
@@ -442,7 +435,6 @@ async function stockTableIn(_pCustCode, _prdCode, _inQty, _prdCost, _inDate) {
                AND PRODUCT_CODE = '${_prdCode}'
                AND STOCK_DATE >= '${_inDate}'
              ORDER BY STOCK_DATE`
-            console.log(ls_sqlQuery);
             let dtLoop = await new mssql.Request().query(ls_sqlQuery)
             let drLoop = dtLoop.recordset
 
@@ -457,7 +449,6 @@ async function stockTableIn(_pCustCode, _prdCode, _inQty, _prdCost, _inDate) {
                      WHERE CUST_CODE = '${_pCustCode}'
                        AND PRODUCT_CODE = '${_prdCode}'
                        AND STOCK_DATE = '${ls_stockDate}'`
-                    console.log(ls_sqlQuery);
                     await new mssql.Request().query(ls_sqlQuery)
                 } else {
                     let ls_sqlQuery = `
@@ -468,7 +459,6 @@ async function stockTableIn(_pCustCode, _prdCode, _inQty, _prdCost, _inDate) {
                      WHERE CUST_CODE = '${_pCustCode}'
                        AND PRODUCT_CODE = '${_prdCode}'
                        AND STOCK_DATE = '${ls_stockDate}'`
-                    console.log(ls_sqlQuery);
                     await new mssql.Request().query(ls_sqlQuery)
                 }
             }
@@ -491,7 +481,6 @@ async function stockTableIn(_pCustCode, _prdCode, _inQty, _prdCost, _inDate) {
             WHERE CUST_CODE = '${_pCustCode}'
               AND PRODUCT_CODE = '${_prdCode}'
               AND STOCK_DATE > '${_inDate}'`
-            console.log(ls_sqlQuery);
             await new mssql.Request().query(ls_sqlQuery)
 
         } else if (li_dateCount != 0 && li_dateHighCount == 0) {
@@ -503,7 +492,6 @@ async function stockTableIn(_pCustCode, _prdCode, _inQty, _prdCost, _inDate) {
             WHERE CUST_CODE = '${_pCustCode}'
               AND PRODUCT_CODE = '${_prdCode}'
               AND STOCK_DATE = '${_inDate}'`
-            console.log(ls_sqlQuery);
             await new mssql.Request().query(ls_sqlQuery)
         }
         await stockCustTableUpload(_pCustCode, _prdCode)
@@ -526,7 +514,6 @@ async function productStockIn(_inNo, _prdCode, _pCustCode, _fCustCode, _dvrQty, 
                '${_pCustCode}', '${_fCustCode}', '${_dateYYYY}', '', 0, 'N'
           FROM PRD_STOCK_TBL WITH(NOLOCK)
          WHERE IN_NO = '${_inNo}' `
-        console.log(ls_sqlQuery);
         await new mssql.Request().query(ls_sqlQuery)
     } catch (error) {
         // console.log(error);
@@ -689,6 +676,36 @@ async function fabricIn(_fabricNo, _pCustCode, _prdCode, _dvrQty, _dateYYYY, _ti
     }
 
 
+}
+
+async function fabricMove(_custCode, _productCode, _qty, _fabricNo, _remark, _dateYY, _dateYYYY, _timeHHmm, _empNo) {
+    let li_seqNo = 1
+    let li_inOutDiv = 1
+    try {
+        let ls_sqlQuery = `
+        UPDATE FABRIC_IN_TBL SET IN_DATE='${_dateYY}', 
+                                 IN_TIME='${_timeHHmm}', 
+                                 EMP_NO='${_empNo}' 
+         WHERE IN_NO = '${_fabricNo}';
+        
+        
+        UPDATE FABRIC_INOUT_TBL SET INOUT_QTY=${_qty}, 
+                                    REG_DATE='${_dateYYYY}', 
+                                    REG_TIME='${_timeHHmm}', 
+                                    REMARK='${_remark}' 
+         WHERE SEQ_NO=${li_seqNo} 
+           AND INOUT_DIV=${li_inOutDiv};
+        
+        
+        UPDATE FABRIC_STOCK_TBL SET CUST_CODE='${_custCode}', 
+                                    STOCK_QTY=${_qty}
+         WHERE IN_NO='${_fabricNo}'`
+        await new mssql.Request().query(ls_sqlQuery)
+    } catch (error) {
+        // console.log(error);
+        throw error
+
+    }
 }
 
 async function getFabricNo(req, res) {
@@ -886,17 +903,25 @@ async function getWorkOrdList(req, res) {
 }
 module.exports.getWorkOrdList = getWorkOrdList
 
+async function getWorkshopTempCustCode() {
+    let ls_sqlQuery = "SELECT B.CUST_CODE, B.CUST_NAME FROM PMS_COMMON_CUST_D_TBL A WITH(NOLOCK) LEFT JOIN CUSTOMER_TBL B WITH(NOLOCK) ON A.CUST_CODE = B.CUST_CODE WHERE A.H_CODE = 37"
+    let dt = await new mssql.Request().query(ls_sqlQuery)
+    let dr = dt.recordset
+    return dr[0]["CUST_CODE"]
+}
+
 async function getWorkOrdBOMMove(req, res) {
+    const ls_workShopTempCustCode = await getWorkshopTempCustCode()
     const ls_DateFrom = decodeURIComponent(req.query.DATE_FROM) || "";
     const ls_DateTo = decodeURIComponent(req.query.DATE_TO) || "";
     const ls_WorkOrdNo = decodeURIComponent(req.query.WORK_ORD_NO) || "";
 
     let ls_sqlQuery = `
-    SELECT A.WORK_ORD_NO, A.PRODUCT_CODE, A.FABRIC_NO, C.PRD_NAME, A.TEMP_MOVE_DATE, 
-	       A.IN_QTY, A.REQ_QTY, A.TOT_MAKE_QTY
-     FROM WORK_ORD_BOM_MOVE_TBL A LEFT JOIN FABRIC_IN_TBL B ON A.FABRIC_NO = B.IN_NO
-							      LEFT JOIN PRODUCT_TBL C ON B.PRODUCT_CODE = C.PRODUCT_CODE
-    WHERE A.TEMP_MOVE_DATE BETWEEN '${ls_DateFrom}' AND '${ls_DateTo}'`
+    SELECT B.WORK_ORD_NO,B.PRODUCT_CODE, A.IN_NO, C.PRD_NAME, B.TEMP_MOVE_DATE, A.STOCK_QTY, B.REQ_QTY, B.TOT_MAKE_QTY
+      FROM FABRIC_STOCK_TBL A LEFT JOIN WORK_ORD_BOM_MOVE_TBL B ON A.IN_NO = B.FABRIC_NO
+                             LEFT JOIN PRODUCT_TBL C ON B.PRODUCT_CODE = C.PRODUCT_CODE
+     WHERE A.CUST_CODE = '${ls_workShopTempCustCode}'
+       AND B.TEMP_MOVE_DATE BETWEEN '${ls_DateFrom}' AND '${ls_DateTo}'`
 
     if (ls_WorkOrdNo != "") ls_sqlQuery += ` AND A.WORK_ORD_NO = '${ls_WorkOrdNo}'`
     let dt = await new mssql.Request().query(ls_sqlQuery)
@@ -906,10 +931,10 @@ async function getWorkOrdBOMMove(req, res) {
         let js = {}
         js.WORK_ORD_NO = row['WORK_ORD_NO']
         js.PRODUCT_CODE = row['PRODUCT_CODE']
-        js.FABRIC_NO = row['FABRIC_NO']
+        js.FABRIC_NO = row['IN_NO']
         js.PRD_NAME = row['PRD_NAME']
         js.TEMP_MOVE_DATE = row['TEMP_MOVE_DATE']
-        js.IN_QTY = row['IN_QTY']
+        js.IN_QTY = row['STOCK_QTY']
         js.REQ_QTY = row['REQ_QTY']
         js.TOT_MAKE_QTY = row['TOT_MAKE_QTY']
         data.push(js)
@@ -922,24 +947,23 @@ async function move2Workshop(req, res) {
     const ls_InoutCode_In = "10"
     const ls_InoutCode_Dvr = "20"
     const ls_workShopCustCode = "A10116003"
-    const ls_workShopTempCustCode = "A10116003" //Change this to new tempWorkshop
+    const ls_workShopTempCustCode = await getWorkshopTempCustCode()
     const ITEMS = req.body.ITEM || "";
     const ls_empNo = decodeURIComponent(req.body.EMP_NO) || "";
     try {
         for (const item of JSON.parse(ITEMS)) {
             const ls_fabricNo = item.FABRIC_NO
             const ls_productCode = item.PRODUCT_CODE
-            const lf_productQty = item.PRODUCT_QTY
+            const lf_productQty = item.IN_QTY
             const ls_workOrdNo = item.WORK_ORD_NO
-            console.log(ls_fabricNo);
-            await new Promise(resolve => setTimeout(resolve, 500));
-            //const ls_Move_InNo = insertInHTable(ls_InoutCode_In, ls_workShopTempCustCode, ls_workShopCustCode, `W/O No: ${ls_workOrdNo} Output Warehouse From Order`, ls_empNo, getCurrentDate(4), getCurrentTime())
-            //const ls_Move_DvrNo = insertDeliveryHTable(ls_InoutCode_Dvr, ls_workShopTempCustCode, ls_workShopCustCode, `W/O No: ${ls_workOrdNo} Output Warehouse From Order`, ls_empNo, getCurrentDate(4), getCurrentTime())
-            // insert2DelevryDTable(ls_Move_DvrNo, ls_productCode, lf_productQty, 0)
-            // insert2InDTable(ls_Move_InNo, ls_productCode, lf_productQty, 0)
-            // stockMove(ls_Move_DvrNo, ls_Move_InNo, ls_workShopTempCustCode, ls_workShopCustCode, getCurrentDate(4), ls_productCode, lf_productQty)
-            // fabricOut(ls_workShopTempCustCode, ls_fabricNo, lf_productQty, getCurrentDate(4), getCurrentTime(), ls_empNo)
-            // insertCutInOutTable(ls_workOrdNo, ls_fabricNo, ls_productCode, lf_productQty, ls_empNo, getCurrentDate(4), getCurrentTime(), ls_Move_DvrNo, ls_Move_InNo)
+            console.log(ls_fabricNo, ls_productCode, lf_productQty, ls_workOrdNo);
+            const ls_Move_InNo = await insertInHTable(ls_InoutCode_In, ls_workShopTempCustCode, ls_workShopCustCode, `W/O No: ${ls_workOrdNo} Output Warehouse From Order`, ls_empNo, getCurrentDate(4), getCurrentTime(), getCurrentDate(2))
+            const ls_Move_DvrNo = await insertDeliveryHTable(ls_InoutCode_Dvr, ls_workShopTempCustCode, ls_workShopCustCode, `W/O No: ${ls_workOrdNo} Output Warehouse From Order`, ls_empNo, getCurrentDate(4), getCurrentTime(), getCurrentDate(2))
+            await insert2DelevryDTable(ls_Move_DvrNo, ls_productCode, lf_productQty, 0, 0)
+            await insert2InDTable(ls_Move_InNo, ls_productCode, lf_productQty, 0, 0)
+            await stockMove(ls_Move_DvrNo, ls_Move_InNo, ls_workShopTempCustCode, ls_workShopCustCode, getCurrentDate(4), ls_productCode, lf_productQty)
+            fabricOut(ls_workShopTempCustCode, ls_fabricNo, lf_productQty, getCurrentDate(4), getCurrentTime(), ls_empNo)
+            insertCutInOutTable(ls_workOrdNo, ls_fabricNo, ls_productCode, lf_productQty, ls_empNo, getCurrentDate(4), getCurrentTime(), ls_Move_DvrNo, ls_Move_InNo)
         }
         res.json({ success: true, message: "SUCCESS" });
     }
@@ -970,12 +994,12 @@ async function insertCutInOutTable(_workOrdNo, _fabricNo, _productCode, _outQty,
     }
 }
 async function getSeqNoCutInOut(_workOrdNo) {
-    let ls_sqlQuery = `SELECT ISNULL(MAX(SEQ_NO),0) + 1 FROM CUT_INOUT_H_TBL WITH(NOLOCK) WHERE WORK_ORD_NO = '${_workOrdNo}'`
+    let ls_sqlQuery = `SELECT ISNULL(MAX(SEQ_NO),0) + 1 SEQ_NO FROM CUT_INOUT_H_TBL WITH(NOLOCK) WHERE WORK_ORD_NO = '${_workOrdNo}'`
     try {
         let dt = await new mssql.Request().query(ls_sqlQuery)
-        let dr = dt.recordset
+        dr = dt.recordset
+        return dr[0]["SEQ_NO"]
     } catch (error) {
         throw error
     }
-    return dr[0][0].toString()
 }
