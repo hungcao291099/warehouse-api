@@ -5,8 +5,8 @@ function settingDb(mssqlConnect) {
 module.exports.settingDb = settingDb;
 
 async function updateFabricLocation(req, res) {
-    const ls_fCustCode = decodeURIComponent(req.body.FROM_CUST) || "";
-    const ls_pCustCode = decodeURIComponent(req.body.TO_CUST) || "";
+    const ls_fromCustCode = decodeURIComponent(req.body.FROM_CUST) || "";
+    const ls_toCustCode = decodeURIComponent(req.body.TO_CUST) || "";
     const ls_empNo = decodeURIComponent(req.body.EMP_NO) || "";
     const ls_productCode = decodeURIComponent(req.body.PRODUCT_CODE) || "";
     const li_prdQty = decodeURIComponent(req.body.PRODUCT_QTY) || "";
@@ -27,13 +27,13 @@ async function updateFabricLocation(req, res) {
         const lf_deliveryCost = 0 // Move to local warehouse, it have no cost
         const lf_deliveryQty = parseFloat(li_prdQty)
         const lf_deliveryPrice = lf_deliveryCost * lf_deliveryQty
-        const ls_deliveryNo = await insertDeliveryHTable(ls_OutpayCode, ls_fCustCode, ls_pCustCode, ls_inHNote, ls_empNo, ls_date_YYYYMMdd, ls_time_HHmm, ls_date_YYMMdd)
-        const ls_inNo = await insertInHTable(ls_InpayCode, ls_fCustCode, ls_pCustCode, ls_inHNote, ls_empNo, ls_date_YYYYMMdd, ls_time_HHmm, ls_date_YYMMdd)
+        const ls_inNo = await insertInHTable(ls_InpayCode, ls_toCustCode, ls_fromCustCode, ls_inHNote, ls_empNo, ls_date_YYYYMMdd, ls_time_HHmm, ls_date_YYMMdd)
+        const ls_deliveryNo = await insertDeliveryHTable(ls_OutpayCode, ls_fromCustCode, ls_toCustCode, ls_inHNote, ls_empNo, ls_date_YYYYMMdd, ls_time_HHmm, ls_date_YYMMdd)
 
         await insert2DelevryDTable(ls_deliveryNo, ls_productCode, lf_deliveryQty, lf_productCost, lf_deliveryPrice)
         await insert2InDTable(ls_inNo, ls_productCode, lf_deliveryQty, lf_deliveryCost, lf_deliveryPrice, "", lf_productCost)
-        await stockMove(ls_deliveryNo, ls_inNo, ls_fCustCode, ls_pCustCode, ls_date_YYYYMMdd, ls_productCode, lf_deliveryQty, lf_productCost)
-        await fabricMove(ls_pCustCode, ls_productCode, lf_deliveryQty, ls_fabricNo, ls_fabricRemark, ls_date_YYMMdd, ls_date_YYYYMMdd, ls_time_HHmm, ls_empNo)
+        await stockMove(ls_deliveryNo, ls_inNo, ls_fromCustCode, ls_toCustCode, ls_date_YYYYMMdd, ls_productCode, lf_deliveryQty, lf_productCost)
+        await fabricMove(ls_toCustCode, ls_productCode, lf_deliveryQty, ls_fabricNo, ls_fabricRemark, ls_date_YYMMdd, ls_date_YYYYMMdd, ls_time_HHmm, ls_empNo)
         return res.json({ success: true, message: "SUCCESS" });
     } catch (error) {
         console.error(`Error executing query: `, error);
@@ -81,7 +81,7 @@ async function getProductCost(_productCode) {
 }
 
 //async function insertDeliveryHTable(PAY_CODE, _fCustCode, TO_CUST, dvrRemark, EMP_NO, currentDate, currentTime, currentDate2) {
-async function insertDeliveryHTable(_payCode, _fCustCode, _pCustCode, _hRemark, _empNo, _dateYYYY, _timeHHmm, _dateYY) {
+async function insertDeliveryHTable(_payCode, _pCustCode, _fCustCode, _hRemark, _empNo, _dateYYYY, _timeHHmm, _dateYY) {
     const ls_DeliveryNo = await createDvrNo(_pCustCode, _dateYY)
     try {
         let ls_sqlQuery = `
@@ -103,7 +103,7 @@ async function insertDeliveryHTable(_payCode, _fCustCode, _pCustCode, _hRemark, 
     return ls_DeliveryNo
 }
 
-async function insertInHTable(_payCode, _fCustCode, _pCustCode, _hRemark, _empNo, _dateYYYY, _timeHHmm, _dateYY) {
+async function insertInHTable(_payCode, _pCustCode, _fCustCode, _hRemark, _empNo, _dateYYYY, _timeHHmm, _dateYY) {
     const ls_InNo = await createInNo(_pCustCode, _dateYY)
     try {
         let ls_sqlQuery = `
@@ -710,6 +710,7 @@ async function fabricMove(_custCode, _productCode, _qty, _fabricNo, _remark, _da
 
 async function getFabricNo(req, res) {
     const ls_productCode = decodeURIComponent(req.query.PRODUCT_CODE) || "";
+    const li_qty = decodeURIComponent(req.query.PRODUCT_QTY) || "";
     if (ls_productCode.length == 0) {
 
         return res.json({ success: false, message: "PRODUCT_CODE must not be empty" });
@@ -719,7 +720,8 @@ async function getFabricNo(req, res) {
         SELECT C.CUST_NAME,A.IN_NO,A.STOCK_QTY 
          FROM FABRIC_STOCK_TBL A LEFT JOIN FABRIC_IN_TBL B ON A.IN_NO = B.IN_NO 
                                  LEFT JOIN CUSTOMER_TBL C ON C.CUST_CODE = A.CUST_CODE 
-        WHERE B.PRODUCT_CODE='${ls_productCode}'`
+        WHERE B.PRODUCT_CODE='${ls_productCode}'
+          AND A.STOCK_QTY LIKE '${li_qty}%'`
         let dt = await new mssql.Request().query(ls_sqlQuery);
         let dr = dt.recordset
         let data = []
@@ -765,8 +767,8 @@ async function getCurrentFabricLocation(req, res) {
 module.exports.getCurrentFabricLocation = getCurrentFabricLocation
 
 async function ProductionMove(req, res) {
-    const ls_fCustCode = decodeURIComponent(req.body.FROM_CUST) || "";
-    const ls_pCustCode = decodeURIComponent(req.body.TO_CUST) || "";
+    const ls_fromCustCode = decodeURIComponent(req.body.FROM_CUST) || "";
+    const ls_toCustCode = decodeURIComponent(req.body.TO_CUST) || "";
     const ls_empNo = decodeURIComponent(req.body.EMP_NO) || "";
     const ls_productCode = decodeURIComponent(req.body.PRODUCT_CODE) || "";
     const li_Qty = decodeURIComponent(req.body.PRODUCT_QTY) || "";
@@ -782,12 +784,12 @@ async function ProductionMove(req, res) {
         const lf_deliveryQty = parseFloat(li_Qty)
         const lf_deliveryPrice = lf_deliveryCost * lf_deliveryQty
         const lf_productCost = await getProductCost(ls_productCode)
-        const ls_deliveryNo = await insertDeliveryHTable(ls_OutPayCode, ls_fCustCode, ls_pCustCode, ls_inHNote, ls_empNo, ls_date_YYYYMMdd, ls_time_HHmm, ls_date_YYMMdd)
-        const ls_inNo = await insertInHTable(ls_InPayCode, ls_fCustCode, ls_pCustCode, ls_inHNote, ls_empNo, ls_date_YYYYMMdd, ls_time_HHmm, ls_date_YYMMdd)
+        const ls_deliveryNo = await insertDeliveryHTable(ls_OutPayCode, ls_fromCustCode, ls_toCustCode, ls_inHNote, ls_empNo, ls_date_YYYYMMdd, ls_time_HHmm, ls_date_YYMMdd)
+        const ls_inNo = await insertInHTable(ls_InPayCode, ls_toCustCode, ls_fromCustCode, ls_inHNote, ls_empNo, ls_date_YYYYMMdd, ls_time_HHmm, ls_date_YYMMdd)
 
         await insert2DelevryDTable(ls_deliveryNo, ls_productCode, lf_deliveryQty, lf_productCost, lf_deliveryPrice)
         await insert2InDTable(ls_inNo, ls_productCode, lf_deliveryQty, lf_deliveryCost, lf_deliveryPrice, "", lf_productCost)
-        await stockMove(ls_deliveryNo, ls_inNo, ls_fCustCode, ls_pCustCode, ls_date_YYYYMMdd, ls_productCode, lf_deliveryQty, lf_productCost)
+        await stockMove(ls_deliveryNo, ls_inNo, ls_fromCustCode, ls_toCustCode, ls_date_YYYYMMdd, ls_productCode, lf_deliveryQty, lf_productCost)
 
         return res.json({ success: true, message: "SUCCESS" });
     } catch (error) {
@@ -956,8 +958,8 @@ async function move2Workshop(req, res) {
             const ls_productCode = item.PRODUCT_CODE
             const lf_productQty = item.IN_QTY
             const ls_workOrdNo = item.WORK_ORD_NO
+            const ls_Move_InNo = await insertInHTable(ls_InoutCode_In, ls_workShopCustCode, ls_workShopTempCustCode, `W/O No: ${ls_workOrdNo} Output Warehouse From Order`, ls_empNo, getCurrentDate(4), getCurrentTime(), getCurrentDate(2))
             console.log(ls_fabricNo, ls_productCode, lf_productQty, ls_workOrdNo);
-            const ls_Move_InNo = await insertInHTable(ls_InoutCode_In, ls_workShopTempCustCode, ls_workShopCustCode, `W/O No: ${ls_workOrdNo} Output Warehouse From Order`, ls_empNo, getCurrentDate(4), getCurrentTime(), getCurrentDate(2))
             const ls_Move_DvrNo = await insertDeliveryHTable(ls_InoutCode_Dvr, ls_workShopTempCustCode, ls_workShopCustCode, `W/O No: ${ls_workOrdNo} Output Warehouse From Order`, ls_empNo, getCurrentDate(4), getCurrentTime(), getCurrentDate(2))
             await insert2DelevryDTable(ls_Move_DvrNo, ls_productCode, lf_productQty, 0, 0)
             await insert2InDTable(ls_Move_InNo, ls_productCode, lf_productQty, 0, 0)
