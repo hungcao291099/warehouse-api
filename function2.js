@@ -625,8 +625,8 @@ async function stockCustTableUpload(_custCode, _prdCode) {
     }
 
 }
-async function fabricOut(_fCustCode, _fabricNo, _dvrQty, _dateYYYY, _timeHHmm, _empNo) {
-    var ls_remark = "Update location"
+async function fabricOut(_fCustCode, _fabricNo, _dvrQty, _dateYYYY, _timeHHmm, _empNo, _remark) {
+
     try {
         let ls_sqlQuery = `
         DELETE FROM FABRIC_STOCK_TBL WHERE CUST_CODE = '${_fCustCode}' AND IN_NO = '${_fabricNo}';
@@ -634,7 +634,7 @@ async function fabricOut(_fCustCode, _fabricNo, _dvrQty, _dateYYYY, _timeHHmm, _
         INSERT INTO FABRIC_INOUT_TBL (IN_NO, SEQ_NO, INOUT_DIV, INOUT_QTY, REG_DATE,
                                       REG_TIME, EMP_NO, REMARK)
         SELECT '${_fabricNo}', ISNULL(MAX(SEQ_NO), 0) + 1, '2', ${_dvrQty}, '${_dateYYYY}', 
-               '${_timeHHmm}', '${_empNo}', '${ls_remark}'
+               '${_timeHHmm}', '${_empNo}', '${_remark}'
          FROM FABRIC_INOUT_TBL WITH(NOLOCK)
         WHERE IN_NO = '${_fabricNo}'`
         await new mssql.Request().query(ls_sqlQuery)
@@ -683,23 +683,19 @@ async function fabricMove(_custCode, _productCode, _qty, _fabricNo, _remark, _da
     let li_inOutDiv = 1
     try {
         let ls_sqlQuery = `
-        UPDATE FABRIC_IN_TBL SET IN_DATE='${_dateYY}', 
-                                 IN_TIME='${_timeHHmm}', 
-                                 EMP_NO='${_empNo}' 
-         WHERE IN_NO = '${_fabricNo}';
-        
-        
-        UPDATE FABRIC_INOUT_TBL SET INOUT_QTY=${_qty}, 
-                                    REG_DATE='${_dateYYYY}', 
-                                    REG_TIME='${_timeHHmm}', 
-                                    REMARK='${_remark}' 
-         WHERE SEQ_NO=${li_seqNo} 
-           AND INOUT_DIV=${li_inOutDiv};
-        
-        
-        UPDATE FABRIC_STOCK_TBL SET CUST_CODE='${_custCode}', 
-                                    STOCK_QTY=${_qty}
-         WHERE IN_NO='${_fabricNo}'`
+        INSERT INTO FABRIC_INOUT_TBL (IN_NO, SEQ_NO, INOUT_DIV, INOUT_QTY, REG_DATE, REG_TIME, EMP_NO, REMARK)
+        SELECT '${_fabricNo}', ISNULL(MAX(SEQ_NO), 0) + 1, '2', ${_qty}, '${_dateYYYY}', '${_timeHHmm}', '${_empNo}', 'Fabric Move Out'
+        FROM FABRIC_INOUT_TBL WITH(NOLOCK)
+        WHERE IN_NO = '${_fabricNo}';
+       
+        INSERT INTO FABRIC_INOUT_TBL (IN_NO, SEQ_NO, INOUT_DIV, INOUT_QTY, REG_DATE, REG_TIME, EMP_NO, REMARK)
+        SELECT '${_fabricNo}', ISNULL(MAX(SEQ_NO), 0) + 1, '1', ${_qty}, '${_dateYYYY}', '${_timeHHmm}', '${_empNo}', 'Fabric Move In'
+        FROM FABRIC_INOUT_TBL WITH(NOLOCK)
+        WHERE IN_NO = '${_fabricNo}';
+
+        DELETE FROM FABRIC_STOCK_TBL WHERE CUST_CODE = '${_custCode}' AND IN_NO = '${_fabricNo}';
+
+        INSERT INTO FABRIC_STOCK_TBL (CUST_CODE, IN_NO, STOCK_QTY) VALUES ('${_custCode}', '${_fabricNo}', ${_qty})`
         await new mssql.Request().query(ls_sqlQuery)
     } catch (error) {
         // console.log(error);
@@ -964,7 +960,7 @@ async function move2Workshop(req, res) {
             await insert2DelevryDTable(ls_Move_DvrNo, ls_productCode, lf_productQty, 0, 0)
             await insert2InDTable(ls_Move_InNo, ls_productCode, lf_productQty, 0, 0)
             await stockMove(ls_Move_DvrNo, ls_Move_InNo, ls_workShopTempCustCode, ls_workShopCustCode, getCurrentDate(4), ls_productCode, lf_productQty)
-            fabricOut(ls_workShopTempCustCode, ls_fabricNo, lf_productQty, getCurrentDate(4), getCurrentTime(), ls_empNo)
+            fabricOut(ls_workShopTempCustCode, ls_fabricNo, lf_productQty, getCurrentDate(4), getCurrentTime(), ls_empNo, `W/O No:${ls_workOrdNo} Workshop[temp] -> Workshop[product]`)
             insertCutInOutTable(ls_workOrdNo, ls_fabricNo, ls_productCode, lf_productQty, ls_empNo, getCurrentDate(4), getCurrentTime(), ls_Move_DvrNo, ls_Move_InNo)
         }
         res.json({ success: true, message: "SUCCESS" });
