@@ -40,6 +40,12 @@ func1.settingDb(mssql);
 var func2 = require("./function2.js");
 func2.settingDb(mssql);
 
+var DBFun = require("./DBFun.js");
+DBFun.settingDb(mssql);
+
+var DBProc = require("./DBProc.js");
+DBProc.settingDb(mssql);
+
 app.get('/get_db_config', function (req, res) {
     console.log("/get_db_config - GET");
     let cf = {}
