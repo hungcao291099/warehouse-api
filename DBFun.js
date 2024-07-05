@@ -28,9 +28,9 @@ async function GP_Stock_Move(_dvrNo, _dvrSeqNo, _inNo, _OutCustCode, _inCustCode
 
         if (rs.length == 0) {
             await StockTbl_DVR(_date, _OutCustCode, _productCode, _moveQty, lf_productCost, lf_productCost * _moveQty);
-            // 입고 수불처리
+            // Receipt and handling
             await StockTbl_IN(_date, _inCustCode, _productCode, _moveQty, lf_productCost, lf_productCost * _moveQty);
-            // 선입선출
+            // first-in-first-out
             await PrdStockTbl_IN(_inNo, 0, _productCode, _inCustCode, _OutCustCode, _moveQty, lf_productCost, _moveQty * lf_productCost);
 
             lf_Tot_OutQty = 0;
@@ -42,7 +42,6 @@ async function GP_Stock_Move(_dvrNo, _dvrSeqNo, _inNo, _OutCustCode, _inCustCode
                 lf_Temp_Cost = Number(rs[i]["INOUT_COST"]);
 
                 if (lf_Tot_OutQty > lf_Temp_Qty || lf_Tot_OutQty == lf_Temp_Qty) {
-                    console.log("CHECK------1");
                     await PrdStockTbl_Dvr(rs[i]["IN_NO"], parseInt(rs[i]["SEQ_NO"]), _dvrNo, _dvrSeqNo, _productCode, _OutCustCode, _inCustCode, lf_Temp_Qty, lf_Temp_Cost);
                     // First in, first out
                     await PrdStockTbl_IN(_inNo, 0, _productCode, _inCustCode, _OutCustCode, lf_Temp_Qty, lf_Temp_Cost, lf_Temp_Qty * lf_Temp_Cost);
@@ -55,7 +54,6 @@ async function GP_Stock_Move(_dvrNo, _dvrSeqNo, _inNo, _OutCustCode, _inCustCode
                     lf_Tot_OutQty -= lf_Temp_Qty;
                 }
                 else if (lf_Tot_OutQty < lf_Temp_Qty) {
-                    console.log("CHECK------2");
                     await PrdStockTbl_Dvr(rs[i]["IN_NO"], parseInt(rs[i]["SEQ_NO"]), _dvrNo, _dvrSeqNo, _productCode, _OutCustCode, _inCustCode, lf_Tot_OutQty, lf_Temp_Cost);
                     // First in, first out
                     await PrdStockTbl_IN(_inNo, 0, _productCode, _inCustCode, _OutCustCode, lf_Tot_OutQty, lf_Temp_Cost, lf_Tot_OutQty * lf_Temp_Cost);
@@ -123,7 +121,7 @@ async function StockTbl_DVR(_dvrDate, _pCustCode, _productCode, _dvrQty, _cost, 
         }
         if (rs[0]["DATE_CNT"].toString() == "0" && rs[0]["DATE_HIGH_CNT"].toString() == "0") {
             if (rs[0]["DATE_LOW_CNT"].toString() == "0") {
-                //해당일자 입력
+                //Enter date
                 sSql = "INSERT INTO " + ls_Stock_Tbl + " (CUST_CODE, PRODUCT_CODE, STOCK_DATE, " + NewLine;
                 sSql += "          TRANS_QTY, TRANS_PRICE," + NewLine;
                 sSql += "          IN_QTY, IN_PRICE," + NewLine;
@@ -138,7 +136,7 @@ async function StockTbl_DVR(_dvrDate, _pCustCode, _productCode, _dvrQty, _cost, 
                 await db.SqlExecute(sSql)
             }
             else {
-                //해당일자 입력
+                //Enter date
                 sSql = "INSERT INTO " + ls_Stock_Tbl + " (CUST_CODE, PRODUCT_CODE, STOCK_DATE," + NewLine;
                 sSql += "                       TRANS_QTY, TRANS_PRICE," + NewLine;
                 sSql += "                       IN_QTY, IN_PRICE," + NewLine;
@@ -159,8 +157,7 @@ async function StockTbl_DVR(_dvrDate, _pCustCode, _productCode, _dvrQty, _cost, 
             }
         }
         else if (rs[0]["DATE_CNT"].toString() != "0" && rs[0]["DATE_HIGH_CNT"].toString() == "0") {
-            // 이 부분은 테스트를 해볼것...
-            //해당일자 수정
+            // Correction of the applicable date
             sSql = "UPDATE " + ls_Stock_Tbl + NewLine;
             sSql += "   SET OUT_QTY = OUT_QTY + " + _dvrQty + "," + NewLine;
             sSql += "       OUT_PRICE = OUT_PRICE + " + _dvrPrice + "," + NewLine;
@@ -172,7 +169,6 @@ async function StockTbl_DVR(_dvrDate, _pCustCode, _productCode, _dvrQty, _cost, 
             await db.SqlExecute(sSql);
         }
         else if (rs[0]["DATE_CNT"].toString() != "0" && rs[0]["DATE_HIGH_CNT"].toString() != "0") {
-            //테스트 해봐야 함.
             sSql = "SELECT STOCK_DATE FROM STOCK_TBL WITH(NOLOCK)" + NewLine;
             sSql += " WHERE CUST_CODE = '" + _pCustCode + "'" + NewLine;
             sSql += "   AND PRODUCT_CODE = '" + _productCode + "'" + NewLine;
@@ -207,7 +203,6 @@ async function StockTbl_DVR(_dvrDate, _pCustCode, _productCode, _dvrQty, _cost, 
         }
         else if (rs[0]["DATE_CNT"].toString() == "0" && rs[0]["DATE_HIGH_CNT"].toString() != "0") {
             if (rs[0]["DATE_LOW_CNT"].toString() == "0") {
-                //해당일자 입력
                 sSql = "INSERT INTO " + ls_Stock_Tbl + " (CUST_CODE, PRODUCT_CODE, STOCK_DATE, " + NewLine;
                 sSql += "          TRANS_QTY, TRANS_PRICE," + NewLine;
                 sSql += "          IN_QTY, IN_PRICE," + NewLine;
@@ -221,7 +216,6 @@ async function StockTbl_DVR(_dvrDate, _pCustCode, _productCode, _dvrQty, _cost, 
                 await db.SqlExecute(sSql);
             }
             else {
-                //해당일자 입력
                 sSql = "INSERT INTO " + ls_Stock_Tbl + " (CUST_CODE, PRODUCT_CODE, STOCK_DATE," + NewLine;
                 sSql += "                       TRANS_QTY, TRANS_PRICE," + NewLine;
                 sSql += "                       IN_QTY, IN_PRICE," + NewLine;
@@ -241,7 +235,7 @@ async function StockTbl_DVR(_dvrDate, _pCustCode, _productCode, _dvrQty, _cost, 
                 await db.SqlExecute(sSql);
             }
         }
-        // 거래처재고 처리
+        // Customer inventory processing
         await StockCustTbl_Upd(_pCustCode, _productCode);
     } catch (error) {
         throw error
@@ -310,7 +304,7 @@ async function StockTbl_IN(_inDate, _pCustCode, _productCode, _inQty, _cost, _in
         sSql += "       (SELECT COUNT(*) FROM STOCK_TBL WITH(NOLOCK) WHERE CUST_CODE = '" + _pCustCode + "' AND PRODUCT_CODE = '" + _productCode + "' AND STOCK_DATE < '" + _inDate + "') AS DATE_LOW_CNT" + NewLine;
         rs = await db.Sql2DataRecordset(sSql);
 
-        // 처음등록건일 경우
+        // For the first time
         if (rs[0]["TOT_CNT"].toString() == "0") {
             sSql = "INSERT INTO " + ls_Stock_Tbl + " (CUST_CODE, PRODUCT_CODE, STOCK_DATE, " + NewLine;
             sSql += "          TRANS_QTY, TRANS_PRICE," + NewLine;
@@ -327,7 +321,6 @@ async function StockTbl_IN(_inDate, _pCustCode, _productCode, _inQty, _cost, _in
 
         if (rs[0]["DATE_CNT"].toString() == "0" && rs[0]["DATE_HIGH_CNT"].toString() == "0") {
             if (rs[0]["DATE_LOW_CNT"].toString() == "0") {
-                //해당일자 입력
                 sSql = "INSERT INTO " + ls_Stock_Tbl + " (CUST_CODE, PRODUCT_CODE, STOCK_DATE, " + NewLine;
                 sSql += "          TRANS_QTY, TRANS_PRICE," + NewLine;
                 sSql += "          IN_QTY, IN_PRICE," + NewLine;
@@ -341,7 +334,6 @@ async function StockTbl_IN(_inDate, _pCustCode, _productCode, _inQty, _cost, _in
                 await db.SqlExecute(sSql);
             }
             else {
-                //해당일자 입력
                 sSql = "INSERT INTO " + ls_Stock_Tbl + " (CUST_CODE, PRODUCT_CODE, STOCK_DATE," + NewLine;
                 sSql += "                       TRANS_QTY, TRANS_PRICE," + NewLine;
                 sSql += "                       IN_QTY, IN_PRICE," + NewLine;
@@ -362,7 +354,7 @@ async function StockTbl_IN(_inDate, _pCustCode, _productCode, _inQty, _cost, _in
             }
         }
         else if (rs[0]["DATE_CNT"].toString() != "0" && rs[0]["DATE_HIGH_CNT"].toString() != "0") {
-            //해당일자 수정
+            //Correction of the date
             sSql = "UPDATE " + ls_Stock_Tbl + NewLine;
             sSql += "   SET IN_QTY = IN_QTY + " + _inQty + "," + NewLine;
             sSql += "       IN_PRICE = IN_PRICE + " + _inPrice + "," + NewLine;
@@ -374,7 +366,6 @@ async function StockTbl_IN(_inDate, _pCustCode, _productCode, _inQty, _cost, _in
             await db.SqlExecute(sSql);
         }
         else if (rs[0]["DATE_CNT"].toString() != "0" && rs[0]["DATE_HIGH_CNT"].toString() != "0") {
-            //테스트 해봐야 함.
             sSql = "SELECT STOCK_DATE FROM STOCK_TBL WITH(NOLOCK)" + NewLine;
             sSql += " WHERE CUST_CODE = '" + _pCustCode + "'" + NewLine;
             sSql += "   AND PRODUCT_CODE = '" + _productCode + "'" + NewLine;
@@ -408,7 +399,6 @@ async function StockTbl_IN(_inDate, _pCustCode, _productCode, _inQty, _cost, _in
             }
         }
         else if (rs[0]["DATE_CNT"].toString() == "0" && rs[0]["DATE_HIGH_CNT"].toString() != "0") {
-            //해당일자 입력
             sSql = "INSERT INTO " + ls_Stock_Tbl + " (CUST_CODE, PRODUCT_CODE, STOCK_DATE," + NewLine;
             sSql += "                       TRANS_QTY, TRANS_PRICE," + NewLine;
             sSql += "                       IN_QTY, IN_PRICE," + NewLine;
@@ -438,7 +428,7 @@ async function StockTbl_IN(_inDate, _pCustCode, _productCode, _inQty, _cost, _in
             await db.SqlExecute(sSql);
         }
         else if (rs[0]["DATE_CNT"].toString() != "0" && rs[0]["DATE_HIGH_CNT"].toString() == "0") {
-            // 해당일자만 수정
+            // Modify only that date
             sSql = "UPDATE " + ls_Stock_Tbl + NewLine;
             sSql += "   SET IN_QTY = IN_QTY + " + _inQty + "," + NewLine;
             sSql += "       IN_PRICE = IN_PRICE + " + _inPrice + "," + NewLine;
@@ -449,7 +439,7 @@ async function StockTbl_IN(_inDate, _pCustCode, _productCode, _inQty, _cost, _in
             sSql += "   AND STOCK_DATE = '" + _inDate + "'" + NewLine;
             await db.SqlExecute(sSql);
         }
-        // 거래처재고 처리
+        // Customer inventory processing
         await StockCustTbl_Upd(_pCustCode, _productCode);
     } catch (error) {
         throw error
@@ -545,7 +535,6 @@ async function InHTbl_INS_And_InNo(_payCode, _pCustCode, _fCustCode, _inHnote, _
         sSql += "                     P_CUST_CODE, F_CUST_CODE)" + NewLine;
         sSql += " VALUES ('" + ls_InNo + "', '" + Var.NowDate_yyyyMMdd() + "', '" + Var.NowDate_HHmm() + "', '" + _payCode + "', '" + _empNo + "'," + NewLine;
         sSql += "         '" + _pCustCode + "', '" + _fCustCode + "')";
-        console.log(sSql);
         await db.SqlExecute(sSql);
 
         sSql = "INSERT INTO IN_H_REMARK_TBL (IN_NO, REMARK) VALUES ('" + ls_InNo + "', '" + String(_inHnote).replace("'", "''") + "')";
@@ -629,19 +618,18 @@ async function FabricOut_PROC(_custCode, _inNo, _dvrQty, _remark, _empNo) {
         let rs = await db.Sql2DataRecordset(sSql);
 
         if (rs.length == 0) lf_StockQty = 0;
-
         else lf_StockQty = parseInt(rs[0]["STOCK_QTY"].toString());
 
         if (_dvrQty >= lf_StockQty) {
-            // 재고삭제
+            // Inventory deletion
             sSql = "DELETE FROM FABRIC_STOCK_TBL WHERE CUST_CODE = '" + _custCode + "' AND IN_NO = '" + _inNo + "'" + NewLine;
         }
         else {
-            // 재고수정
+            // Inventory modification
             sSql = "UPDATE FABRIC_STOCK_TBL SET STOCK_QTY = " + (lf_StockQty - _dvrQty) + " WHERE CUST_CODE = '" + _custCode + "'  AND IN_NO = '" + _inNo + "'" + NewLine;
         }
 
-        // 입/출고 이력
+        // Incoming/Delivery History
         sSql += "INSERT INTO FABRIC_INOUT_TBL (IN_NO, SEQ_NO, INOUT_DIV, INOUT_QTY, REG_DATE, REG_TIME, EMP_NO, REMARK)" + NewLine;
         sSql += "SELECT '" + _inNo + "', ISNULL(MAX(SEQ_NO), 0) + 1, '2', " + _dvrQty + ", '" + Var.NowDate_yyyyMMdd() + "', '" + Var.NowDate_HHmm() + "', '" + _empNo + "', '" + _remark + "'" + NewLine;
         sSql += "  FROM FABRIC_INOUT_TBL WITH(NOLOCK)" + NewLine;
@@ -671,17 +659,17 @@ async function FabricInTbl_INS(_custCode, _productCode, _inQty, _remark, _impLot
             ls_InNo = ls_InNo + String(parseInt(String(rs[0]["IN_NO"]).slice(-4)) + 1).padStart(4, 0);
         }
 
-        // 입고등록
+        // Receipt registration
         sSql = "INSERT INTO FABRIC_IN_TBL (IN_NO, PRODUCT_CODE, IN_QTY, IN_DATE, IN_TIME, EMP_NO, REMARK, IMP_LOT_NO, DVR_LOT_NO)" + NewLine;
         sSql += "VALUES ('" + ls_InNo + "', '" + _productCode + "', " + _inQty + ", '" + Var.NowDate_yyyyMMdd() + "', '" + Var.NowDate_HHmm() + "', '" + _empNo + "', '" + _remark + "', '" + _impLotNo + "', '" + _dvrLotNo + "')" + NewLine;
         await db.SqlExecute(sSql);
 
-        // 입/출고 이력
+        // Incoming/Delivery History
         sSql = "INSERT INTO FABRIC_INOUT_TBL (IN_NO, SEQ_NO, INOUT_DIV, INOUT_QTY, REG_DATE, REG_TIME, EMP_NO, REMARK)" + NewLine;
         sSql += "VALUES ('" + ls_InNo + "', 1, '1', " + _inQty + ", '" + Var.NowDate_yyyyMMdd() + "', '" + Var.NowDate_HHmm() + "', '" + _empNo + "', '" + _remark + "')" + NewLine;
         await db.SqlExecute(sSql);
 
-        // 재고등록
+        // Inventory registration
         sSql = "INSERT INTO FABRIC_STOCK_TBL (CUST_CODE, IN_NO, STOCK_QTY) VALUES ('" + _custCode + "', '" + ls_InNo + "', " + _inQty + ")";
         await db.SqlExecute(sSql);
 
@@ -702,6 +690,17 @@ async function getWorkshopTempCustCode() {
     }
 }
 module.exports.getWorkshopTempCustCode = getWorkshopTempCustCode
+
+async function getWorkshopCustCode() {
+    try {
+        let sSql = "SELECT B.CUST_CODE, B.CUST_NAME FROM PMS_COMMON_CUST_D_TBL A WITH(NOLOCK) LEFT JOIN CUSTOMER_TBL B WITH(NOLOCK) ON A.CUST_CODE = B.CUST_CODE WHERE A.H_CODE = 2"
+        let rs = await db.Sql2DataRecordset(sSql)
+        return rs[0]["CUST_CODE"]
+    } catch (error) {
+        throw error
+    }
+}
+module.exports.getWorkshopCustCode = getWorkshopCustCode
 
 async function FabricMove_PROC(_fromCustCode, _toCustCode, _productCode, _qty, _inNo, _remark, _empNo) {
     try {

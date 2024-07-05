@@ -3,8 +3,11 @@ var cors = require("cors")
 var mssql = require("mssql");
 var bodyParser = require('body-parser');
 var path = require('path');
+var fs = require('fs');
 var app = express();
 let port = 3012
+const configFile = fs.readFileSync('./config.json', 'utf8');
+const config = JSON.parse(configFile);
 app.use(cors())
 app.listen(port, function () {
     console.log('Server started: ' + (port));
@@ -12,19 +15,10 @@ app.listen(port, function () {
 app.use(express.static(path.join(__dirname, 'html')));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: false }));
 app.use(bodyParser.json({ limit: '100mb' }));
-var config = {
-    "user": "sa", // Database username
-    "password": "@pyungan_pass_sa!@21323", // Database password
-    "server": "192.168.80.3", // Server IP address
-    "database": "PMS_VIETNAM_DB", // Database name
-    "options": {
-        "encrypt": false // Disable encryption
-    }
-}
+
 async function keepAlive() {
     try {
-        await mssql.connect(config);
-        await new mssql.Request().query`SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED`;
+        await mssql.connect(config.dbSetting);
     } catch (err) {
         console.error("DB connect ERROR:", err);
     }
