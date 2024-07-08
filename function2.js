@@ -63,7 +63,7 @@ async function getFabricNo(req, res) {
             js.STOCK_QTY = row["STOCK_QTY"]
             data.push(js)
         }
-        res.json({ success: true, message: "SUCCESS", li_totalCount: rs.length, data });
+        res.json({ success: true, message: "SUCCESS", totalCount: rs.length, data });
     } catch (error) {
         // console.log(error);
         throw error
