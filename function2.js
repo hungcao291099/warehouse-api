@@ -55,7 +55,7 @@ async function getFabricNo(req, res) {
         sSql += "   AND A.STOCK_QTY LIKE '" + li_qty + "%'"
         let rs = await db.Sql2DataRecordset(sSql)
         let data = []
-        if (dr.length == 0) return res.json({ success: true, message: "empty Data", data });
+        if (rs.length == 0) return res.json({ success: true, message: "empty Data", data });
         for (const row of rs) {
             let js = {}
             js.CUST_NAME = row["CUST_NAME"]
@@ -63,7 +63,7 @@ async function getFabricNo(req, res) {
             js.STOCK_QTY = row["STOCK_QTY"]
             data.push(js)
         }
-        res.json({ success: true, message: "SUCCESS", li_totalCount: dr.length, data });
+        res.json({ success: true, message: "SUCCESS", li_totalCount: rs.length, data });
     } catch (error) {
         // console.log(error);
         throw error
