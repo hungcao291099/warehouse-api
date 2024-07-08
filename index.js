@@ -42,29 +42,9 @@ DBProc.settingDb(mssql);
 
 app.get('/get_db_config', function (req, res) {
     console.log("/get_db_config - GET");
-    let cf = {}
-    cf.user = config.user
-    cf.password = config.password
-    cf.server = config.server
-    cf.database = config.database
-    res.json({ config: cf })
+    res.json({ config: config.dbSetting })
 })
-app.post('/upd_db_config', function (req, res) {
-    console.log("/upd_db_config - POST");
-    const user = decodeURIComponent(req.body.user) || "";
-    const password = decodeURIComponent(req.body.password) || "";
-    const server = decodeURIComponent(req.body.server) || "";
-    const database = decodeURIComponent(req.body.database) || "";
-    if (user == "" || password == "" || server == "" || database == "") {
-        res.status(500).json({ success: false, message: "1 of these fields has null" });
-    } else {
-        config.user = user
-        config.database = database
-        config.password = password
-        config.server = server
-        res.json({ success: true, message: "SUCCESS" })
-    }
-})
+
 app.get('/test', function (req, res) {
     let data = {}
     data.API_IP = req.hostname
