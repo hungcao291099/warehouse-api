@@ -234,26 +234,22 @@ async function getWorkOrdBOMMove(req, res) {
     const ls_DateTo = decodeURIComponent(req.query.DATE_TO) || "";
     const ls_WorkOrdNo = decodeURIComponent(req.query.WORK_ORD_NO) || "";
 
-    sSql = "SELECT B.WORK_ORD_NO, B.SEQ_NO, B.PRODUCT_CODE, A.IN_NO, C.PRD_NAME, B.TEMP_MOVE_DATE, A.STOCK_QTY, B.REQ_QTY, B.TOT_MAKE_QTY" + NewLine
-    sSql += "  FROM FABRIC_STOCK_TBL A LEFT JOIN WORK_ORD_BOM_MOVE_TBL B ON A.IN_NO = B.FABRIC_NO" + NewLine
-    sSql += "                          LEFT JOIN PRODUCT_TBL C ON B.PRODUCT_CODE = C.PRODUCT_CODE" + NewLine
-    sSql += " WHERE A.CUST_CODE = '" + ls_workShopTempCustCode + "'" + NewLine
-    sSql += "   AND B.TEMP_MOVE_DATE BETWEEN '" + ls_DateFrom + "' AND '" + ls_DateTo + "'" + NewLine
-    if (ls_WorkOrdNo != "") sSql += "AND B.WORK_ORD_NO = '" + ls_WorkOrdNo + "'"
-    sSql += " ORDER BY B.WORK_ORD_NO"
+    sSql = "SELECT A.WORK_ORD_NO, A.SEQ_NO, A.FABRIC_NO, A.TEMP_MOVE_DATE, A.IN_QTY, B.PRD_NAME " + NewLine
+    sSql += "  FROM WORK_ORD_BOM_MOVE_TBL A LEFT JOIN PRODUCT_TBL B ON A.PRODUCT_CODE = B.PRODUCT_CODE" + NewLine
+    sSql += " WHERE A.CUT_INOUT_SEQ = 0" + NewLine
+    sSql += "   AND A.TEMP_MOVE_DATE BETWEEN '" + ls_DateFrom + "' AND '" + ls_DateTo + "'" + NewLine
+    if (ls_WorkOrdNo != "") sSql += "AND A.WORK_ORD_NO = '" + ls_WorkOrdNo + "'"
+    sSql += " ORDER BY A.WORK_ORD_NO"
     let rs = await db.Sql2DataRecordset(sSql)
     let data = []
     for (const row of rs) {
         let js = {}
         js.WORK_ORD_NO = row['WORK_ORD_NO']
         js.SEQ_NO = row['SEQ_NO']
-        js.PRODUCT_CODE = row['PRODUCT_CODE']
-        js.FABRIC_NO = row['IN_NO']
+        js.FABRIC_NO = row['FABRIC_NO']
         js.PRD_NAME = row['PRD_NAME']
         js.TEMP_MOVE_DATE = row['TEMP_MOVE_DATE']
-        js.IN_QTY = row['STOCK_QTY']
-        js.REQ_QTY = row['REQ_QTY']
-        js.TOT_MAKE_QTY = row['TOT_MAKE_QTY']
+        js.IN_QTY = row['IN_QTY']
         data.push(js)
     }
     res.json({ success: true, message: "SUCCESS", data });
