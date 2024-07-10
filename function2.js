@@ -248,7 +248,7 @@ async function getWorkOrdBOMMove(req, res) {
         js.SEQ_NO = row['SEQ_NO']
         js.FABRIC_NO = row['FABRIC_NO']
         js.PRD_NAME = row['PRD_NAME']
-        js.PRD_CODE = row['PRD_CODE']
+        js.PRODUCT_CODE = row['PRODUCT_CODE']
         js.TEMP_MOVE_DATE = row['TEMP_MOVE_DATE']
         js.IN_QTY = row['IN_QTY']
         data.push(js)
