@@ -234,7 +234,7 @@ async function getWorkOrdBOMMove(req, res) {
     const ls_DateTo = decodeURIComponent(req.query.DATE_TO) || "";
     const ls_WorkOrdNo = decodeURIComponent(req.query.WORK_ORD_NO) || "";
 
-    sSql = "SELECT A.WORK_ORD_NO, A.SEQ_NO, A.FABRIC_NO, A.TEMP_MOVE_DATE, A.IN_QTY, B.PRD_NAME " + NewLine
+    sSql = "SELECT A.WORK_ORD_NO, A.PRODUCT_CODE, A.SEQ_NO, A.FABRIC_NO, A.TEMP_MOVE_DATE, A.IN_QTY, B.PRD_NAME " + NewLine
     sSql += "  FROM WORK_ORD_BOM_MOVE_TBL A LEFT JOIN PRODUCT_TBL B ON A.PRODUCT_CODE = B.PRODUCT_CODE" + NewLine
     sSql += " WHERE A.CUT_INOUT_SEQ = 0" + NewLine
     sSql += "   AND A.TEMP_MOVE_DATE BETWEEN '" + ls_DateFrom + "' AND '" + ls_DateTo + "'" + NewLine
@@ -248,6 +248,7 @@ async function getWorkOrdBOMMove(req, res) {
         js.SEQ_NO = row['SEQ_NO']
         js.FABRIC_NO = row['FABRIC_NO']
         js.PRD_NAME = row['PRD_NAME']
+        js.PRD_CODE = row['PRD_CODE']
         js.TEMP_MOVE_DATE = row['TEMP_MOVE_DATE']
         js.IN_QTY = row['IN_QTY']
         data.push(js)
