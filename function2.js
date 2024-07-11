@@ -202,6 +202,35 @@ async function findProductByName(req, res) {
 }
 module.exports.findProductByName = findProductByName
 
+async function findFabrictByName(req, res) {
+    let sSql = ""
+    const ls_prdName = decodeURIComponent(req.query.PRODUCT_NAME) || "";
+    var ls_tempCondition = ""
+    const li_HCode = 1 //Product Stock
+    if (ls_prdName == "") ls_tempCondition = `1=1`
+    else ls_tempCondition = `B.PRD_NAME LIKE '%${ls_prdName}%'`
+    sSql += "SELECT A.PRODUCT_CODE, B.PRD_NAME " + NewLine
+    sSql += "  FROM STOCK_CUST_TBL A LEFT JOIN PRODUCT_TBL B ON A.PRODUCT_CODE = B.PRODUCT_CODE" + NewLine
+    sSql += "                        LEFT JOIN PMS_COMMON_CUST_D_TBL C ON A.CUST_CODE = C.CUST_CODE" + NewLine
+    sSql += " WHERE " + ls_tempCondition + NewLine
+    sSql += "   AND C.H_CODE= " + li_HCode + NewLine
+    sSql += " GROUP BY A.PRODUCT_CODE, B.PRD_NAME" + NewLine
+    let rs = await db.Sql2DataRecordset(sSql)
+    if (rs.length == 0) {
+        return res.json({ success: false, message: "Can not find any product with that name" });
+    }
+    let data = []
+    for (const row of rs) {
+        let js = {}
+        js.PRODUCT_CODE = row["PRODUCT_CODE"]
+        js.PRD_NAME = row["PRD_NAME"]
+        data.push(js)
+    }
+    res.json({ success: true, message: "SUCCESS", data });
+
+}
+module.exports.findFabrictByName = findFabrictByName
+
 async function getWorkOrdList(req, res) {
     let sSql = ""
     const ls_DateFrom = decodeURIComponent(req.query.DATE_FROM) || "";

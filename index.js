@@ -140,6 +140,10 @@ app.get('/main/find_product_by_name', function (req, res) {
     console.log("/main/find_product_by_name - GET");
     func2.findProductByName(req, res)
 })
+app.get('/main/find_fabric_by_name', function (req, res) {
+    console.log("/main/find_fabric_by_name - GET");
+    func2.findFabrictByName(req, res)
+})
 
 app.post('/main/production_move', function (req, res) {
     console.log("/main/production_move - GET");
