@@ -294,10 +294,10 @@ async function move2Workshop(req, res) {
     const ls_workOrdNo = ITEMS[0].WORK_ORD_NO
     let ls_workShopCustCode = await DBFun.getWorkshopCustCode()
     let ls_workShopTempCustCode = await DBFun.getWorkshopTempCustCode()
-    let ls_Move_InNo = await DBFun.InHTbl_INS_And_InNo(ls_InoutCode_In, ls_workShopCustCode, ls_workShopTempCustCode, `W/O No: ${ls_workOrdNo} Output Warehouse From Order`, ls_empNo)
-    let ls_Move_DvrNo = await DBFun.DeliveryHTbl_INS_Ret_DvrNo(ls_InoutCode_Dvr, ls_workShopTempCustCode, ls_workShopCustCode, `W/O No: ${ls_workOrdNo} Output Warehouse From Order`, ls_empNo)
     let li_InOut_SeqNo = 1
     try {
+        let ls_Move_DvrNo = await DBFun.DeliveryHTbl_INS_Ret_DvrNo(ls_InoutCode_Dvr, ls_workShopTempCustCode, ls_workShopCustCode, `W/O No: ${ls_workOrdNo} Output Warehouse From Order`, ls_empNo)
+        let ls_Move_InNo = await DBFun.InHTbl_INS_And_InNo(ls_InoutCode_In, ls_workShopCustCode, ls_workShopTempCustCode, `W/O No: ${ls_workOrdNo} Output Warehouse From Order`, ls_empNo)
         for (let item of ITEMS) {
             const ls_fabricNo = item.FABRIC_NO
             const ls_productCode = item.PRODUCT_CODE
