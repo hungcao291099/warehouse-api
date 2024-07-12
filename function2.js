@@ -296,24 +296,40 @@ async function move2Workshop(req, res) {
     let ls_workShopTempCustCode = await DBFun.getWorkshopTempCustCode()
     let li_InOut_SeqNo = 1
     try {
-        let ls_Move_DvrNo = await DBFun.DeliveryHTbl_INS_Ret_DvrNo(ls_InoutCode_Dvr, ls_workShopTempCustCode, ls_workShopCustCode, `W/O No: ${ls_workOrdNo} Output Warehouse From Order`, ls_empNo)
-        let ls_Move_InNo = await DBFun.InHTbl_INS_And_InNo(ls_InoutCode_In, ls_workShopCustCode, ls_workShopTempCustCode, `W/O No: ${ls_workOrdNo} Output Warehouse From Order`, ls_empNo)
-        for (let item of ITEMS) {
-            const ls_fabricNo = item.FABRIC_NO
-            const ls_productCode = item.PRODUCT_CODE
-            const lf_productQty = item.IN_QTY
-            const li_SeqNo = item.SEQ_NO
-            const lf_productCost = await DBFun.productCode2productCost(ls_productCode)
 
-            li_InOut_SeqNo++
+        let tempArray = []
+        ITEMS.map(item => tempArray.push(item.WORK_ORD_NO))
+        let WorkOrdNoList = tempArray.reduce((acc, item) => {
+            if (!acc.includes(item)) {
+                acc.push(item);
+            }
+            return acc;
+        }, []);
+        console.log(WorkOrdNoList);
+        for (const WorkOrdNo of WorkOrdNoList) {
+            // console.log(`----------${WorkOrdNo}`);
+            let ls_Move_DvrNo = await DBFun.DeliveryHTbl_INS_Ret_DvrNo(ls_InoutCode_Dvr, ls_workShopTempCustCode, ls_workShopCustCode, `W/O No: ${WorkOrdNo} Output Warehouse From Order`, ls_empNo)
+            let ls_Move_InNo = await DBFun.InHTbl_INS_And_InNo(ls_InoutCode_In, ls_workShopCustCode, ls_workShopTempCustCode, `W/O No: ${WorkOrdNo} Output Warehouse From Order`, ls_empNo)
+            for (let item of ITEMS) {
+                if (item.WORK_ORD_NO == WorkOrdNo) {
+                    const ls_fabricNo = item.FABRIC_NO
+                    const ls_productCode = item.PRODUCT_CODE
+                    const lf_productQty = item.IN_QTY
+                    const li_SeqNo = item.SEQ_NO
+                    const lf_productCost = await DBFun.productCode2productCost(ls_productCode)
+                    // console.log(ls_fabricNo, ls_productCode, lf_productQty, li_SeqNo, lf_productCost);
+                    li_InOut_SeqNo++
 
-            await DBFun.DeliveryDTbl_SeqNo_INS(ls_Move_DvrNo, li_InOut_SeqNo, ls_productCode, lf_productQty, 0, 0, "")
-            await DBFun.InDTbl_SeqNo_INS(ls_Move_InNo, li_InOut_SeqNo, ls_productCode, lf_productQty, 0, 0, "", lf_productCost)
-            await DBFun.GP_Stock_Move(ls_Move_DvrNo, li_InOut_SeqNo, ls_Move_InNo, ls_workShopTempCustCode, ls_workShopCustCode, Var.NowDate_yyyyMMdd(), ls_productCode, lf_productQty)
-            await DBFun.FabricOut_PROC(ls_workShopTempCustCode, ls_fabricNo, lf_productQty, `W/O No:${ls_workOrdNo} Workshop[temp] -> Workshop[product]`, ls_empNo)
-            let li_CutInOutSeq = await insertCutInOutTable(ls_workOrdNo, ls_fabricNo, ls_productCode, lf_productQty, ls_empNo, ls_Move_DvrNo, ls_Move_InNo)
-            await updateWorkOrdBOMMoveTbl(ls_workOrdNo, li_SeqNo, li_CutInOutSeq)
+                    await DBFun.DeliveryDTbl_SeqNo_INS(ls_Move_DvrNo, li_InOut_SeqNo, ls_productCode, lf_productQty, 0, 0, "")
+                    await DBFun.InDTbl_SeqNo_INS(ls_Move_InNo, li_InOut_SeqNo, ls_productCode, lf_productQty, 0, 0, "", lf_productCost)
+                    await DBFun.GP_Stock_Move(ls_Move_DvrNo, li_InOut_SeqNo, ls_Move_InNo, ls_workShopTempCustCode, ls_workShopCustCode, Var.NowDate_yyyyMMdd(), ls_productCode, lf_productQty)
+                    await DBFun.FabricOut_PROC(ls_workShopTempCustCode, ls_fabricNo, lf_productQty, `W/O No:${WorkOrdNo} Workshop[temp] -> Workshop[product]`, ls_empNo)
+                    let li_CutInOutSeq = await insertCutInOutTable(WorkOrdNo, ls_fabricNo, ls_productCode, lf_productQty, ls_empNo, ls_Move_DvrNo, ls_Move_InNo)
+                    await updateWorkOrdBOMMoveTbl(WorkOrdNo, li_SeqNo, li_CutInOutSeq)
+                }
+            }
         }
+
         res.json({ success: true, message: "SUCCESS" });
     }
     catch (error) {
