@@ -173,3 +173,15 @@ app.post('/main/move_to_workshop', function (req, res) {
     console.log("/main/move_to_workshop - POST");
     func2.move2Workshop(req, res)
 })
+app.get('/main/get_pending_fabric_list', function (req, res) {
+    console.log("/main/get_pending_fabric_list - GET");
+    func2.getPendingFabricList(req, res)
+})
+app.post('/main/set_checked_fabric', function (req, res) {
+    console.log("/main/set_checked_fabric - POST");
+    func2.setCheckedFabric(req, res)
+})
+app.get('/main/get_fabric_check_out_list', function (req, res) {
+    console.log("/main/get_fabric_check_out_list - GET");
+    func2.getFabricCheckOutList(req, res)
+})

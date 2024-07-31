@@ -286,6 +286,95 @@ async function getWorkOrdBOMMove(req, res) {
 }
 module.exports.getWorkOrdBOMMove = getWorkOrdBOMMove
 
+async function getPendingFabricList(req, res) {
+    let sSql = ""
+    const ls_DateFrom = decodeURIComponent(req.query.DATE_FROM) || "";
+    const ls_DateTo = decodeURIComponent(req.query.DATE_TO) || "";
+    const li_FabricLength = decodeURIComponent(req.query.FABRIC_LENGTH) || 0;
+
+    sSql = "SELECT A.IN_NO, A.SEQ_NO, A.REG_DATE, A.REG_TIME, A.INOUT_QTY, B.PRODUCT_CODE, C.PRD_NAME " + NewLine
+    sSql += "  FROM FABRIC_INOUT_TBL A LEFT JOIN FABRIC_IN_TBL B ON A.IN_NO = B.IN_NO" + NewLine
+    sSql += "                          LEFT JOIN PRODUCT_TBL C ON B.PRODUCT_CODE = C.PRODUCT_CODE" + NewLine
+    sSql += " WHERE A.CHECK_YN = 'N'" + NewLine
+    sSql += "   AND A.INOUT_DIV = 2" + NewLine
+    sSql += "   AND A.REG_DATE BETWEEN '" + ls_DateFrom + "' AND '" + ls_DateTo + "'" + NewLine
+    if (li_FabricLength != 0) sSql += "AND A.INOUT_QTY = " + li_FabricLength
+    sSql += " ORDER BY A.REG_DATE DESC, A.REG_TIME DESC"
+
+    let rs = await db.Sql2DataRecordset(sSql)
+    let data = []
+    for (const row of rs) {
+        let js = {}
+        js.FABRIC_IN_NO = row['IN_NO']
+        js.SEQ_NO = row['SEQ_NO']
+        js.OUT_DATE = row['REG_DATE']
+        js.OUT_TIME = row['REG_TIME']
+        js.OUT_QTY = row['INOUT_QTY']
+        js.PRODUCT_CODE = row['PRODUCT_CODE']
+        js.PRD_NAME = row['PRD_NAME']
+        data.push(js)
+    }
+    res.json({ success: true, message: "SUCCESS", data });
+}
+module.exports.getPendingFabricList = getPendingFabricList
+
+async function setCheckedFabric(req, res) {
+    const ls_empNo = decodeURIComponent(req.body.EMP_NO) || "";
+    const ITEMS = JSON.parse(req.body.ITEMS) || "";
+    try {
+        for (const ITEM of ITEMS) {
+            let sSql = "UPDATE FABRIC_INOUT_TBL SET CHECK_EMP_NO = '" + ls_empNo + "'," + NewLine
+            sSql += "                               CHECK_YN = 'Y'," + NewLine
+            sSql += "                               CHECK_DATE = '" + Var.NowDate_yyyyMMdd() + "'," + NewLine
+            sSql += "                               CHECK_TIME = '" + Var.NowDate_HHmm() + "'" + NewLine
+            sSql += "WHERE IN_NO = '" + ITEM.FABRIC_IN_NO + "'" + NewLine
+            sSql += "  AND SEQ_NO = " + ITEM.SEQ_NO
+
+            await db.SqlExecute(sSql);
+        }
+        res.json({ success: true, message: "SUCCESS" });
+    } catch (error) {
+        console.error(`Error executing query: `, error);
+        res.status(500).json({ success: false, message: "An error occurred while processing the request ", error: error.message });
+    }
+}
+module.exports.setCheckedFabric = setCheckedFabric
+
+async function getFabricCheckOutList(req, res) {
+    let sSql = ""
+    const ls_DateFrom = decodeURIComponent(req.query.DATE_FROM) || "";
+    const ls_DateTo = decodeURIComponent(req.query.DATE_TO) || "";
+
+    sSql = "SELECT A.IN_NO, B.PRODUCT_CODE, C.PRD_NAME, A.REG_DATE, A.REG_TIME, A.INOUT_QTY, A.CHECK_EMP_NO, D.EMP_NAME, A.CHECK_DATE, A.CHECK_TIME, A.CHECK_YN " + NewLine
+    sSql += "  FROM FABRIC_INOUT_TBL A LEFT JOIN FABRIC_IN_TBL B ON A.IN_NO = B.IN_NO" + NewLine
+    sSql += "                          LEFT JOIN PRODUCT_TBL C ON B.PRODUCT_CODE = C.PRODUCT_CODE" + NewLine
+    sSql += "                          LEFT JOIN EMPLOYEE_TBL D ON A.CHECK_EMP_NO = D.EMP_NO " + NewLine
+    sSql += " WHERE A.INOUT_DIV = 2" + NewLine
+    sSql += "   AND A.REG_DATE BETWEEN '" + ls_DateFrom + "' AND '" + ls_DateTo + "'" + NewLine
+    sSql += "   AND A.CHECK_YN IS NOT NULL" + NewLine
+    sSql += " ORDER BY A.REG_DATE DESC, A.REG_TIME DESC"
+
+    let rs = await db.Sql2DataRecordset(sSql)
+    let data = []
+    for (const row of rs) {
+        let js = {}
+        js.FABRIC_IN_NO = row['IN_NO']
+        js.PRODUCT_CODE = row['PRODUCT_CODE']
+        js.PRD_NAME = row['PRD_NAME']
+        js.OUT_DATE = row['REG_DATE']
+        js.OUT_TIME = row['REG_TIME']
+        js.OUT_QTY = row['INOUT_QTY']
+        js.CHECK_EMP_NO = row['CHECK_EMP_NO']
+        js.CHECK_EMP_NAME = row['EMP_NAME']
+        js.CHECK_DATE = row['CHECK_DATE']
+        js.CHECK_TIME = row['CHECK_TIME']
+        js.CHECK_YN = row['CHECK_YN']
+        data.push(js)
+    }
+    res.json({ success: true, message: "SUCCESS", data });
+}
+module.exports.getFabricCheckOutList = getFabricCheckOutList
+
 async function move2Workshop(req, res) {
     const ls_empNo = decodeURIComponent(req.body.EMP_NO) || "";
     const ITEMS = JSON.parse(req.body.ITEM) || "";
