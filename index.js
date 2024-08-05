@@ -1,6 +1,9 @@
 var express = require('express');
 var cors = require("cors")
 var mssql = require("mssql");
+const axios = require('axios');
+const { GoogleAuth } = require('google-auth-library');
+const admin = require('firebase-admin');
 var bodyParser = require('body-parser');
 var path = require('path');
 var fs = require('fs');
@@ -8,6 +11,8 @@ var app = express();
 let port = 3012
 const configFile = fs.readFileSync('./config.json', 'utf8');
 const config = JSON.parse(configFile);
+
+const serviceAccount = require('./serviceAccountKey.json');
 app.use(cors())
 app.listen(port, function () {
     console.log('Server started: ' + (port));
@@ -16,6 +21,9 @@ app.use(express.static(path.join(__dirname, 'html')));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: false }));
 app.use(bodyParser.json({ limit: '100mb' }));
 
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
 async function keepAlive() {
     try {
         await mssql.connect(config.dbSetting);
@@ -28,8 +36,10 @@ async function keepAlive() {
 keepAlive();
 setInterval(keepAlive, 30000);
 
+
 var func1 = require("./function1.js");
 func1.settingDb(mssql);
+func1.setFCM(admin)
 
 var func2 = require("./function2.js");
 func2.settingDb(mssql);
@@ -49,7 +59,7 @@ app.get('/test', function (req, res) {
     let data = {}
     data.API_IP = req.hostname
     data.API_PORT = port.toString()
-    data.DB_IP = config.server
+    data.DB_IP = config.dbSetting.server
     data.err = ""
     try {
         new mssql.Request().query('SELECT 1 AS number')
@@ -185,3 +195,9 @@ app.get('/main/get_fabric_check_out_list', function (req, res) {
     console.log("/main/get_fabric_check_out_list - GET");
     func2.getFabricCheckOutList(req, res)
 })
+app.post('/app/send_notification', function (req, res) {
+    console.log("/app/send_notification - POST");
+    func1.sendNotification(req, res)
+})
+
+

@@ -1,12 +1,14 @@
-
+var config = require("./config.json")
 let mssql;
-
+let admin;
 function settingDb(mssqlConnect) {
     mssql = mssqlConnect;
-
 }
 module.exports.settingDb = settingDb;
-
+function setFCM(adminFCM){
+    admin = adminFCM;
+}
+module.exports.setFCM = setFCM
 async function empNo2Name(req, res) {
     try {
         const ls_emp_no = decodeURIComponent(req.query.emp_no) || "";
@@ -496,3 +498,25 @@ async function deleteLGR(req, res) {
     }
 }
 module.exports.deleteLGR = deleteLGR
+
+
+async function sendNotification (req,res){
+    const { title, body } = req.body;
+
+    try {
+      const message = {
+        notification: {
+          title: title,
+          body: body,
+        },
+        topic: 'allDevices', // Send to all devices subscribed to 'allDevices' topic
+      };
+  
+      const response = await admin.messaging().send(message);
+      res.status(200).send(`Notification sent successfully: ${response}`);
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      res.status(500).send('Error sending notification');
+    }
+}
+module.exports.sendNotification = sendNotification
