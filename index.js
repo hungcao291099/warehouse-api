@@ -9,7 +9,7 @@ var app = express();
 let port = 3012
 const configFile = fs.readFileSync('./config.json', 'utf8');
 const config = JSON.parse(configFile);
-
+const cron = require('node-cron');
 const serviceAccount = require('./serviceAccountKey.json');
 app.use(cors())
 app.listen(port, function () {
@@ -29,7 +29,9 @@ async function keepAlive() {
         console.error("DB connect ERROR:", err);
     }
 }
-
+cron.schedule('0 15 * * *', () => {
+    console.log('test');
+  });
 // Call keepAlive once during application startup
 keepAlive();
 setInterval(keepAlive, 30000);
