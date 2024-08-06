@@ -1,8 +1,6 @@
 var express = require('express');
 var cors = require("cors")
 var mssql = require("mssql");
-const axios = require('axios');
-const { GoogleAuth } = require('google-auth-library');
 const admin = require('firebase-admin');
 var bodyParser = require('body-parser');
 var path = require('path');

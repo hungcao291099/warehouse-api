@@ -324,7 +324,7 @@ async function setCheckedFabric(req, res) {
     try {
         for (const ITEM of ITEMS) {
             let sSql = "UPDATE FABRIC_INOUT_TBL SET CHECK_EMP_NO = '" + ls_empNo + "'," + NewLine
-            sSql += "                               CHECK_YN = 'Y'," + NewLine
+            sSql += "                               CHECK_DIV = 2," + NewLine
             sSql += "                               CHECK_DATE = '" + Var.NowDate_yyyyMMdd() + "'," + NewLine
             sSql += "                               CHECK_TIME = '" + Var.NowDate_HHmm() + "'" + NewLine
             sSql += "WHERE IN_NO = '" + ITEM.FABRIC_IN_NO + "'" + NewLine
