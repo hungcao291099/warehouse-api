@@ -291,14 +291,16 @@ async function getPendingFabricList(req, res) {
     const ls_DateFrom = decodeURIComponent(req.query.DATE_FROM) || "";
     const ls_DateTo = decodeURIComponent(req.query.DATE_TO) || "";
     const li_FabricLength = decodeURIComponent(req.query.FABRIC_LENGTH) || 0;
+    const ls_workOrdNo = decodeURIComponent(req.query.WORK_ORD_NO) || "";
 
-    sSql = "SELECT A.IN_NO, A.SEQ_NO, A.REG_DATE, A.REG_TIME, A.INOUT_QTY, B.PRODUCT_CODE, C.PRD_NAME " + NewLine
+    sSql = "SELECT A.IN_NO, A.SEQ_NO, A.REG_DATE, A.REG_TIME, A.INOUT_QTY, B.PRODUCT_CODE, C.PRD_NAME, A.WORK_ORD_NO " + NewLine
     sSql += "  FROM FABRIC_INOUT_TBL A LEFT JOIN FABRIC_IN_TBL B ON A.IN_NO = B.IN_NO" + NewLine
     sSql += "                          LEFT JOIN PRODUCT_TBL C ON B.PRODUCT_CODE = C.PRODUCT_CODE" + NewLine
     sSql += " WHERE A.CHECK_DIV = 1" + NewLine
     sSql += "   AND A.INOUT_DIV = 2" + NewLine
     sSql += "   AND A.REG_DATE BETWEEN '" + ls_DateFrom + "' AND '" + ls_DateTo + "'" + NewLine
-    if (li_FabricLength != 0) sSql += "AND A.INOUT_QTY = " + li_FabricLength
+    if (li_FabricLength != 0) sSql += "AND A.INOUT_QTY = " + li_FabricLength + NewLine
+    if (ls_workOrdNo != "") sSql += "AND A.WORK_ORD_NO = " + ls_workOrdNo + NewLine
     sSql += " ORDER BY A.REG_DATE DESC, A.REG_TIME DESC"
 
     let rs = await db.Sql2DataRecordset(sSql)
@@ -311,7 +313,8 @@ async function getPendingFabricList(req, res) {
         js.OUT_TIME = row['REG_TIME']
         js.OUT_QTY = row['INOUT_QTY']
         js.PRODUCT_CODE = row['PRODUCT_CODE']
-        js.PRD_NAME = row['PRD_NAME']
+        js.PRD_NAME = row['PRD_NAME'] 
+        js.WORK_ORD_NO = row['WORK_ORD_NO'] 
         data.push(js)
     }
     res.json({ success: true, message: "SUCCESS", data });
