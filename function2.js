@@ -347,14 +347,16 @@ async function getFabricCheckOutList(req, res) {
     let sSql = ""
     const ls_DateFrom = decodeURIComponent(req.query.DATE_FROM) || "";
     const ls_DateTo = decodeURIComponent(req.query.DATE_TO) || "";
+    const ls_workOrdNo = decodeURIComponent(req.query.WORK_ORD_NO) || "";
 
-    sSql = "SELECT A.IN_NO, B.PRODUCT_CODE, C.PRD_NAME, A.REG_DATE, A.REG_TIME, A.INOUT_QTY, A.CHECK_EMP_NO, D.EMP_NAME, A.CHECK_DATE, A.CHECK_TIME, A.CHECK_DIV " + NewLine
+    sSql = "SELECT A.IN_NO, B.PRODUCT_CODE, C.PRD_NAME, A.REG_DATE, A.REG_TIME, A.INOUT_QTY, A.CHECK_EMP_NO, D.EMP_NAME, A.CHECK_DATE, A.CHECK_TIME, A.CHECK_DIV, A.WORK_ORD_NO " + NewLine
     sSql += "  FROM FABRIC_INOUT_TBL A LEFT JOIN FABRIC_IN_TBL B ON A.IN_NO = B.IN_NO" + NewLine
     sSql += "                          LEFT JOIN PRODUCT_TBL C ON B.PRODUCT_CODE = C.PRODUCT_CODE" + NewLine
     sSql += "                          LEFT JOIN EMPLOYEE_TBL D ON A.CHECK_EMP_NO = D.EMP_NO " + NewLine
     sSql += " WHERE A.INOUT_DIV = 2" + NewLine
     sSql += "   AND A.REG_DATE BETWEEN '" + ls_DateFrom + "' AND '" + ls_DateTo + "'" + NewLine
     sSql += "   AND A.CHECK_DIV > 0" + NewLine
+    if (ls_workOrdNo != "") sSql += "AND A.WORK_ORD_NO = " + ls_workOrdNo + NewLine
     sSql += " ORDER BY A.REG_DATE DESC, A.REG_TIME DESC"
 
     let rs = await db.Sql2DataRecordset(sSql)
@@ -372,6 +374,7 @@ async function getFabricCheckOutList(req, res) {
         js.CHECK_DATE = row['CHECK_DATE']
         js.CHECK_TIME = row['CHECK_TIME']
         js.CHECK_DIV = row['CHECK_DIV']
+        js.WORK_ORD_NO = row['WORK_ORD_NO']
         data.push(js)
     }
     res.json({ success: true, message: "SUCCESS", data });
