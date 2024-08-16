@@ -11,5 +11,15 @@
     "androidApp":{
         "projectId": "fabricwarehouse-9d4af",
         "FCMAccessToken":"105841883736149561477"
-    }
+    },
+    "mySqlDBSetting":{
+    "host":"192.168.80.7",
+    "port":3306,
+    "user":"test",
+    "password":"123456",
+    "database": "warehouse_app",
+    "waitForConnections": true,
+    "connectionLimit": 10,
+    "queueLimit": 0
+  }
 }

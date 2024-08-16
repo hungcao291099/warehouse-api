@@ -1,8 +1,12 @@
 var config = require("./config.json")
+var db = require("./DBProc.js");
+var NewLine = "\r\n"
 let mssql;
+let mysql
 let admin;
-function settingDb(mssqlConnect) {
+function settingDb(mssqlConnect, pool) {
     mssql = mssqlConnect;
+    mysql = pool;
 }
 module.exports.settingDb = settingDb;
 function setFCM(adminFCM){
@@ -501,15 +505,16 @@ module.exports.deleteLGR = deleteLGR
 
 
 async function sendNotification (req,res){
-    const { title, body } = req.body;
-
+    const { title, body, topic} = req.body;
+    
     try {
+       
       const message = {
         notification: {
           title: title,
           body: body,
         },
-        topic: 'allDevices', // Send to all devices subscribed to 'allDevices' topic
+        topic: topic, 
       };
   
       const response = await admin.messaging().send(message);
@@ -520,3 +525,130 @@ async function sendNotification (req,res){
     }
 }
 module.exports.sendNotification = sendNotification
+
+
+
+async function saveUserFCMToken(req,res){
+    const { token, empNo, phoneName } = req.body;
+    try {
+        let ls_sqlQuery = "SELECT * FROM FCM_USER WHERE EMP_NO = '" + empNo + "'"
+        let [result,] = await mysql.query(ls_sqlQuery)
+        
+    
+        if(result.length > 0){
+            ls_sqlQuery = "UPDATE FCM_USER SET FCM_TOKEN = '" + token + "'," + NewLine
+            ls_sqlQuery +=  "                    PHONE_NAME = '" + phoneName + "'" + NewLine
+            ls_sqlQuery +=  "WHERE EMP_NO = '" + empNo + "'"
+        }
+        else{
+            ls_sqlQuery  = "INSERT INTO FCM_USER (EMP_NO, FCM_TOKEN, PHONE_NAME, GROUP_ID)" + NewLine
+            ls_sqlQuery += "VALUES ('" + empNo + "', '" + token + "', '" + phoneName + "', 0)"
+        }
+        
+        await mysql.query(ls_sqlQuery)
+        res.json({ success: true, message: "SUCCESS" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "An error occurred while processing the request ", error: error.message });
+    }
+   
+}
+module.exports.saveUserFCMToken = saveUserFCMToken
+
+async function getGroupUser(req,res){
+    const  empNo  = decodeURIComponent(req.query.empNo);
+    try {
+        let ls_sqlQuery = "SELECT A.EMP_NO, B.GROUP_NAME " + NewLine
+        ls_sqlQuery += "FROM FCM_USER A LEFT JOIN GROUP_USER B ON B.GROUP_ID = A.GROUP_ID " + NewLine
+        ls_sqlQuery += "WHERE A.EMP_NO = '" + empNo + "'"
+        let [result,] = await mysql.query(ls_sqlQuery)
+        let data = {}
+        
+        data.EMP_NO = result[0]["EMP_NO"]
+        data.GROUP_NAME = result[0]["GROUP_NAME"]
+        res.json({ success: true, message: "SUCCESS", data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "An error occurred while processing the request ", error: error.message });
+    }
+}
+module.exports.getGroupUser = getGroupUser
+
+async function getAllFCMUer(req,res){
+    const  empNo  = decodeURIComponent(req.query.empNo) || "";
+    try {
+        let ls_sqlQuery = "SELECT A.EMP_NO, A.FCM_TOKEN, A.PHONE_NAME, A.GROUP_ID , B.GROUP_NAME " + NewLine
+        ls_sqlQuery += "FROM FCM_USER A LEFT JOIN GROUP_USER B ON A.GROUP_ID = B.GROUP_ID" + NewLine
+        ls_sqlQuery += "WHERE 1 = 1" + NewLine
+        if (empNo != "") ls_sqlQuery += "  AND A.EMP_NO = '" + empNo + "'" + NewLine
+        
+        let [result1,] = await mysql.query(ls_sqlQuery)
+        
+        ls_sqlQuery = "SELECT GROUP_ID, GROUP_NAME FROM GROUP_USER "
+        let [result2,] = await mysql.query(ls_sqlQuery)
+        ls_sqlQuery = "SELECT EMP_NO, EMP_NAME FROM EMPLOYEE_TBL "
+        let result3 = await db.Sql2DataRecordset(ls_sqlQuery)
+        
+        let userData = []
+        result1.forEach(user => {
+            let js = {}
+            js.EMP_NO = user["EMP_NO"]
+            js.EMP_NAME = result3.filter(emp => emp.EMP_NO === user["EMP_NO"])[0]["EMP_NAME"]
+            js.FCM_TOKEN = user["FCM_TOKEN"]
+            js.PHONE_NAME = user["PHONE_NAME"]
+            js.GROUP_ID = user["GROUP_ID"]
+            js.GROUP_NAME = user["GROUP_NAME"]
+            userData.push(js)
+        });
+        res.json({ success: true, message: "SUCCESS",FCM_USER:userData, FCM_GROUP: result2 });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "An error occurred while processing the request ", error: error.message });
+    }
+}
+module.exports.getAllFCMUer = getAllFCMUer
+
+async function updateFCMUserGroup(req,res){
+    const {empNo, newGroupID} = req.body
+        
+    try {
+        
+        let ls_sqlQuery = "UPDATE FCM_USER SET GROUP_ID = " + newGroupID + " WHERE EMP_NO = '" + empNo + "'"
+        await mysql.query(ls_sqlQuery)
+        
+        ls_sqlQuery  = "SELECT A.GROUP_ID, B.GROUP_NAME, A.FCM_TOKEN " + NewLine
+        ls_sqlQuery += "  FROM FCM_USER A LEFT JOIN GROUP_USER B ON A.GROUP_ID = B.GROUP_ID " + NewLine
+        ls_sqlQuery += " WHERE EMP_NO = '" + empNo + "'" + NewLine
+        
+        let [result,] = await mysql.query(ls_sqlQuery)
+        
+        ls_sqlQuery = "SELECT * FROM GROUP_USER" + NewLine
+        ls_sqlQuery += "WHERE GROUP_ID NOT IN (0,1)"
+        let [result2,] = await mysql.query(ls_sqlQuery)
+        
+        ls_sqlQuery = "SELECT * FROM GROUP_USER WHERE GROUP_ID = " + newGroupID + NewLine
+        let [result3,] = await mysql.query(ls_sqlQuery)
+        
+        let token = result[0]["FCM_TOKEN"]
+        let newgroupName = result3[0]["GROUP_NAME"]
+        for (let row of result2) {
+            let groupName = row["GROUP_NAME"]
+            await admin.messaging().unsubscribeFromTopic(token, groupName);
+        }
+        
+        switch (newGroupID) {
+            case "0": break;
+            case "1": 
+                for (let row of result2) {
+                    let groupName = row["GROUP_NAME"]
+                    console.log(groupName);
+                    
+                    await admin.messaging().subscribeToTopic(token, groupName);
+                }
+            break;
+            default: await admin.messaging().subscribeToTopic(token, newgroupName); 
+            break;
+        }
+        res.json({ success: true, message: "SUCCESS" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "An error occurred while processing the request ", error: error.message });
+    }
+}
+module.exports.updateFCMUserGroup = updateFCMUserGroup

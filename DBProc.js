@@ -1,6 +1,8 @@
 let mssql;
-function settingDb(mssqlConnect) {
+let mysql
+function settingDb(mssqlConnect, mysqlConnect) {
     mssql = mssqlConnect;
+    mysql = mysqlConnect
 }
 module.exports.settingDb = settingDb;
 

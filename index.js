@@ -1,6 +1,7 @@
 var express = require('express');
 var cors = require("cors")
 var mssql = require("mssql");
+var mysql = require("mysql2");
 const admin = require('firebase-admin');
 var bodyParser = require('body-parser');
 var path = require('path');
@@ -15,6 +16,12 @@ app.use(cors())
 app.listen(port, function () {
     console.log('Server started: ' + (port));
 })
+var pool = mysql.createPool(config.mySqlDBSetting);
+const promisePool = pool.promise()
+setInterval(async () => {
+  await promisePool.query('SELECT 1');
+  // console.log("called")
+}, 1000)
 app.use(express.static(path.join(__dirname, 'html')));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: false }));
 app.use(bodyParser.json({ limit: '100mb' }));
@@ -29,16 +36,12 @@ async function keepAlive() {
         console.error("DB connect ERROR:", err);
     }
 }
-cron.schedule('0 15 * * *', () => {
-    console.log('test');
-  });
-// Call keepAlive once during application startup
 keepAlive();
 setInterval(keepAlive, 30000);
 
 
 var func1 = require("./function1.js");
-func1.settingDb(mssql);
+func1.settingDb(mssql, promisePool);
 func1.setFCM(admin)
 
 var func2 = require("./function2.js");
@@ -48,7 +51,7 @@ var DBFun = require("./DBFun.js");
 DBFun.settingDb(mssql);
 
 var DBProc = require("./DBProc.js");
-DBProc.settingDb(mssql);
+DBProc.settingDb(mssql, promisePool);
 
 app.get('/get_db_config', function (req, res) {
     console.log("/get_db_config - GET");
@@ -198,6 +201,22 @@ app.get('/main/get_fabric_check_out_list', function (req, res) {
 app.post('/app/send_notification', function (req, res) {
     console.log("/app/send_notification - POST");
     func1.sendNotification(req, res)
+})
+app.post('/app/save_token', function (req, res) {
+    console.log("/app/save_token - POST");
+    func1.saveUserFCMToken(req, res)
+})
+app.get('/app/get_group_user', function (req, res) {
+    console.log("/app/get_group_user - GET");
+    func1.getGroupUser(req, res)
+})
+app.get('/app/get_all_fcm_user', function (req, res) {
+    console.log("/app/get_all_fcm_user - GET");
+    func1.getAllFCMUer(req, res)
+})
+app.post('/app/update_user_group', function (req, res) {
+    console.log("/app/update_user_group - POST");
+    func1.updateFCMUserGroup(req, res)
 })
 
 
