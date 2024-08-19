@@ -354,7 +354,7 @@ async function getFabricCheckOutList(req, res) {
     sSql += "  FROM FABRIC_INOUT_TBL A LEFT JOIN FABRIC_IN_TBL B ON A.IN_NO = B.IN_NO" + NewLine
     sSql += "                          LEFT JOIN PRODUCT_TBL C ON B.PRODUCT_CODE = C.PRODUCT_CODE" + NewLine
     sSql += "                          LEFT JOIN EMPLOYEE_TBL D ON A.CHECK_EMP_NO = D.EMP_NO " + NewLine
-    sSql += "                          INNER JOIN CUT_INOUT_D_TBL D ON D.WORK_ORD_NO = A.WORK_ORD_NO AND D.FABRIC_IN_NO = A.IN_NO " + NewLine
+    sSql += "                          INNER JOIN CUT_INOUT_D_TBL E ON E.WORK_ORD_NO = A.WORK_ORD_NO AND E.FABRIC_IN_NO = A.IN_NO " + NewLine
     sSql += " WHERE A.INOUT_DIV = 2" + NewLine
     sSql += "   AND A.REG_DATE BETWEEN '" + ls_DateFrom + "' AND '" + ls_DateTo + "'" + NewLine
     sSql += "   AND A.CHECK_DIV > 0" + NewLine
