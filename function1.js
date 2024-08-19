@@ -23,7 +23,7 @@ async function empNo2Name(req, res) {
         const ls_emp_nm = dt.recordset[0];
         res.json({ success: true, message: "SUCCESS", data: ls_emp_nm });
     } catch (err) {
-        console.error("Error executing query:", err);
+        console.log("Error executing query:", err);
     }
 }
 
@@ -523,8 +523,8 @@ async function sendNotification (req,res){
       const response = await admin.messaging().send(message);
       res.status(200).send(`Notification sent successfully: ${response}`);
     } catch (error) {
-      console.error('Error sending notification:', error);
-      res.status(500).send('Error sending notification');
+      console.log('Error sending notification:', error);
+      res.status(500).json({ success: false, message: "An error occurred while processing the request ", error: error.message });
     }
 }
 module.exports.sendNotification = sendNotification
@@ -539,14 +539,14 @@ async function sendSysNotification (req,res){
           title: title,
           body: body,
         },
-        topic: allDevices, 
+        topic: "allDevices", 
       };
   
       const response = await admin.messaging().send(message);
       res.status(200).send(`Notification sent successfully: ${response}`);
     } catch (error) {
-      console.error('Error sending notification:', error);
-      res.status(500).send('Error sending notification');
+      console.log('Error sending notification:', error);
+      res.status(500).json({ success: false, message: "An error occurred while processing the request ", error: error.message });
     }
 }
 module.exports.sendSysNotification = sendSysNotification
