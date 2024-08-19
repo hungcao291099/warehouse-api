@@ -1,7 +1,6 @@
 var express = require('express');
 var cors = require("cors")
 var mssql = require("mssql");
-var mysql = require("mysql2");
 const admin = require('firebase-admin');
 var bodyParser = require('body-parser');
 var path = require('path');
@@ -10,18 +9,12 @@ var app = express();
 let port = 3012
 const configFile = fs.readFileSync('./config.json', 'utf8');
 const config = JSON.parse(configFile);
-const cron = require('node-cron');
 const serviceAccount = require('./serviceAccountKey.json');
 app.use(cors())
 app.listen(port, function () {
     console.log('Server started: ' + (port));
 })
-var pool = mysql.createPool(config.mySqlDBSetting);
-const promisePool = pool.promise()
-setInterval(async () => {
-  await promisePool.query('SELECT 1');
-  // console.log("called")
-}, 1000)
+
 app.use(express.static(path.join(__dirname, 'html')));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: false }));
 app.use(bodyParser.json({ limit: '100mb' }));
@@ -41,7 +34,7 @@ setInterval(keepAlive, 30000);
 
 
 var func1 = require("./function1.js");
-func1.settingDb(mssql, promisePool);
+func1.settingDb(mssql);
 func1.setFCM(admin)
 
 var func2 = require("./function2.js");
@@ -51,7 +44,7 @@ var DBFun = require("./DBFun.js");
 DBFun.settingDb(mssql);
 
 var DBProc = require("./DBProc.js");
-DBProc.settingDb(mssql, promisePool);
+DBProc.settingDb(mssql);
 
 app.get('/get_db_config', function (req, res) {
     console.log("/get_db_config - GET");

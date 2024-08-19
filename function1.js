@@ -2,11 +2,9 @@ var config = require("./config.json")
 var db = require("./DBProc.js");
 var NewLine = "\r\n"
 let mssql;
-let mysql
 let admin;
 function settingDb(mssqlConnect, pool) {
     mssql = mssqlConnect;
-    mysql = pool;
 }
 module.exports.settingDb = settingDb;
 function setFCM(adminFCM){
