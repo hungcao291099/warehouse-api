@@ -506,7 +506,8 @@ module.exports.deleteLGR = deleteLGR
 
 async function sendNotification (req,res){
     const { title, body, topicID} = req.body;
-    let ls_sqlQuery = "SELECT APP_GROUP_ID, APP_GROUP_NAME FROM APP_GROUP_TBL " + NewLine
+    let ls_sqlQuery = "SELECT APP_GROUP_ID, APP_GROUP_NAME" + NewLine
+    ls_sqlQuery += "  FROM APP_GROUP_TBL WITH(NOLOCK)" + topicID
     ls_sqlQuery += " WHERE APP_GROUP_ID = " + topicID
     
     let dr = await db.Sql2DataRecordset(ls_sqlQuery)
@@ -529,6 +530,28 @@ async function sendNotification (req,res){
     }
 }
 module.exports.sendNotification = sendNotification
+
+async function sendSysNotification (req,res){
+    const { title, body} = req.body;
+
+    try {
+       
+      const message = {
+        notification: {
+          title: title,
+          body: body,
+        },
+        topic: allDevices, 
+      };
+  
+      const response = await admin.messaging().send(message);
+      res.status(200).send(`Notification sent successfully: ${response}`);
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      res.status(500).send('Error sending notification');
+    }
+}
+module.exports.sendSysNotification = sendSysNotification
 
 
 

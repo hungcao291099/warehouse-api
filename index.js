@@ -202,6 +202,10 @@ app.post('/app/send_notification', function (req, res) {
     console.log("/app/send_notification - POST");
     func1.sendNotification(req, res)
 })
+app.post('/app/send_sys_notification', function (req, res) {
+    console.log("/app/send_sys_notification - POST");
+    func1.sendSysNotification(req, res)
+})
 app.post('/app/save_token', function (req, res) {
     console.log("/app/save_token - POST");
     func1.saveUserFCMToken(req, res)
