@@ -206,10 +206,6 @@ app.post('/app/save_token', function (req, res) {
     console.log("/app/save_token - POST");
     func1.saveUserFCMToken(req, res)
 })
-app.get('/app/get_group_user', function (req, res) {
-    console.log("/app/get_group_user - GET");
-    func1.getGroupUser(req, res)
-})
 app.get('/app/get_all_fcm_user', function (req, res) {
     console.log("/app/get_all_fcm_user - GET");
     func1.getAllFCMUer(req, res)
