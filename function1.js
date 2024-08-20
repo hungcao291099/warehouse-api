@@ -574,7 +574,7 @@ async function getAllFCMUer(req,res){
     const  empNo  = decodeURIComponent(req.query.empNo) || "";
     try {
         let ls_sqlQuery = "SELECT A.EMP_NO, A.EMP_NAME, A.APP_TOKEN, A.EMP_PHONE_MODEL, ISNULL(A.APP_GROUP_ID,0) APP_GROUP_ID , B.APP_GROUP_NAME " + NewLine
-        ls_sqlQuery += "FROM EMPLOYEE_TBL WITH(NOLOCK) A LEFT JOIN APP_GROUP_TBL WITH(NOLOCK) B ON B.APP_GROUP_ID = ISNULL(A.APP_GROUP_ID,0)" + NewLine
+        ls_sqlQuery += "FROM EMPLOYEE_TBL A WITH(NOLOCK) LEFT JOIN APP_GROUP_TBL B WITH(NOLOCK) ON B.APP_GROUP_ID = ISNULL(A.APP_GROUP_ID,0)" + NewLine
         ls_sqlQuery += "WHERE A.APP_TOKEN IS NOT NULL" + NewLine
         if (empNo != "") ls_sqlQuery += "  AND A.EMP_NO = '" + empNo + "'" + NewLine
         
@@ -598,7 +598,7 @@ async function updateFCMUserGroup(req,res){
         await db.SqlExecute(ls_sqlQuery)
         
         ls_sqlQuery  = "SELECT A.EMP_NO, A.APP_TOKEN " + NewLine
-        ls_sqlQuery += "  FROM EMPLOYEE_TBL WITH(NOLOCK) A" + NewLine
+        ls_sqlQuery += "  FROM EMPLOYEE_TBL A WITH(NOLOCK)" + NewLine
         ls_sqlQuery += " WHERE EMP_NO = '" + empNo + "'" + NewLine
         let dr = await db.Sql2DataRecordset(ls_sqlQuery)
         let token = dr[0]["APP_TOKEN"]
